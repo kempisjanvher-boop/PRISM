@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dashboard.dart';
 import 'scan_handler.dart';
+import './accounts/login_screen.dart';
 
 class PrismOnboardingScreen extends StatelessWidget {
   @override
@@ -8,15 +9,16 @@ class PrismOnboardingScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // 1. Fullscreen Background Image with Dark Blue Overlay Gradient
+          // 1. Fullscreen Background Image
           Container(
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               image: DecorationImage(
                 image: AssetImage('asset/onboarding.jpg'),
                 fit: BoxFit.cover,
               ),
             ),
           ),
+          // Background Gradient Overlay
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -35,56 +37,58 @@ class PrismOnboardingScreen extends StatelessWidget {
             child: Center(
               child: SingleChildScrollView(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 48.0, vertical: 32.0), // Expanded layout padding for high-res canvases
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Branding Header Block
-                      // Branding Header Block
+                      const SizedBox(height: 40),
+
+                      // Branding Header Block (Properly scaled for high-density 2048x2732 px)
                       Image.asset(
-                        'asset/MLA.png', // Ensure this matches your asset file name and path
-                        height: 110,          // Adjusted to fit neatly within the onboarding layout
+                        'asset/MLA.png',
+                        height: 220,
                         fit: BoxFit.contain,
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 24),
                       RichText(
                         textAlign: TextAlign.center,
-                        text: TextSpan(
+                        text: const TextSpan(
                           text: "Hello, Welcome to ",
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.white,
-                            fontSize: 16,
+                            fontSize: 26,
                           ),
                           children: [
                             TextSpan(
                               text: "MLA.Digital",
                               style: TextStyle(
-                                color: const Color(0xFF0F1B54), // Matches the exact dark blue brand color
-                                fontWeight: FontWeight.bold
+                                color: Color(0xFF0F1B54),
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ],
                         ),
                       ),
 
-                      SizedBox(height: 40),
+                      const SizedBox(height: 80), // Increased separation gap
 
                       // Prompt Text
-                      Text(
+                      const Text(
                         "What do you want today?",
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 28,
+                          fontSize: 42, // Crisp upscale matching display scale proportions
                           fontWeight: FontWeight.w600,
                         ),
                       ),
 
-                      SizedBox(height: 30),
+                      const SizedBox(height: 50),
 
-                      // 3. Selection Action Cards (Responsive layout)
+                      // 3. Selection Action Cards (Responsive Layout with revised breakpoints)
                       LayoutBuilder(
                         builder: (context, constraints) {
-                          bool isWide = constraints.maxWidth > 600;
+                          // Breakpoint optimized for tablet/desktop widths on large asset spaces
+                          bool isWide = constraints.maxWidth > 800;
                           return Flex(
                             direction: isWide ? Axis.horizontal : Axis.vertical,
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -96,14 +100,14 @@ class PrismOnboardingScreen extends StatelessWidget {
                                 subtitle: "Track stock or shipped packages",
                                 imgIcon: Image.asset(
                                   'asset/view.png',
-                                  width: 65,
-                                  height: 65,
+                                  width: 110,  // Upscaled illustration target
+                                  height: 110,
                                 ),
                                 iconColor: Colors.grey.shade700,
                                 targetScreen: PrismMainDashboard(),
                               ),
-                              SizedBox(width: isWide ? 20 : 0, height: isWide ? 0 : 20),
-                              // Edit Inventory Card
+                              SizedBox(width: isWide ? 40 : 0, height: isWide ? 0 : 40), // Amplified gutters
+
                               _buildActionCard(
                                 context: context,
                                 title: "EDIT",
@@ -111,8 +115,8 @@ class PrismOnboardingScreen extends StatelessWidget {
                                 subtitle: "Manage stock or shipped packages",
                                 imgIcon: Image.asset(
                                   'asset/edit.png',
-                                  width: 65,
-                                  height: 65,
+                                  width: 110,
+                                  height: 110,
                                 ),
                                 iconColor: Colors.grey.shade700,
                                 targetScreen: ScanHandlerScreen(),
@@ -122,28 +126,30 @@ class PrismOnboardingScreen extends StatelessWidget {
                         },
                       ),
 
-                      SizedBox(height: 40),
+                      const SizedBox(height: 80),
 
-                      // 4. Auxiliary Authentic Sign-In Action
+                      // 4. Interactive Action Entry Button
                       ElevatedButton(
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text("Sign In administrative module locked.")),
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const LoginScreen()),
                           );
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.indigo.shade900.withOpacity(0.8),
-                          padding: EdgeInsets.symmetric(horizontal: 48, vertical: 14),
+                          backgroundColor: const Color(0xFF0F1B54).withOpacity(0.8),
+                          padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 22), // Taller and broader touch target
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
+                            borderRadius: BorderRadius.circular(40),
                           ),
-                          side: BorderSide(color: Colors.white24),
+                          side: const BorderSide(color: Colors.white24),
                         ),
-                        child: Text(
+                        child: const Text(
                           "Sign In",
-                          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
                         ),
                       ),
+                      const SizedBox(height: 40),
                     ],
                   ),
                 ),
@@ -155,7 +161,7 @@ class PrismOnboardingScreen extends StatelessWidget {
     );
   }
 
-  // Action Selection Card Builder matching image_dc382c.jpg design variables
+  // Action Selection Card Builder customized for large displays
   Widget _buildActionCard({
     required BuildContext context,
     required String title,
@@ -173,38 +179,35 @@ class PrismOnboardingScreen extends StatelessWidget {
         );
       },
       child: Container(
-        width: 260,
-        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+        width: 360, // Expanded width base from 260 to fit large aspect ratios beautifully
+        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.92),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(24),
           boxShadow: const [
             BoxShadow(
               color: Colors.black26,
-              blurRadius: 10,
-              offset: Offset(0, 4),
+              blurRadius: 15,
+              offset: Offset(0, 6),
             )
           ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-
             SizedBox(
-              width: 65,
-              height: 65,
+              width: 110,
+              height: 110,
               child: imgIcon,
             ),
-
-            const SizedBox(height: 16),
-
+            const SizedBox(height: 24),
             Text.rich(
               TextSpan(
                 children: [
                   TextSpan(
                     text: "$title ",
                     style: TextStyle(
-                      fontSize: 20,
+                      fontSize: 28, // Upscaled font sizing
                       fontWeight: FontWeight.bold,
                       color: Colors.indigo.shade900,
                     ),
@@ -212,7 +215,7 @@ class PrismOnboardingScreen extends StatelessWidget {
                   TextSpan(
                     text: highlightedWord,
                     style: TextStyle(
-                      fontSize: 20,
+                      fontSize: 28,
                       fontWeight: FontWeight.bold,
                       color: iconColor,
                     ),
@@ -221,14 +224,12 @@ class PrismOnboardingScreen extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-
-            const SizedBox(height: 6),
-
+            const SizedBox(height: 12),
             Text(
               subtitle,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 16,
                 color: Colors.grey.shade600,
               ),
             ),
