@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../inventory/dashboard.dart';
+import '../admin/dashboard_admin.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -29,7 +30,6 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // Update this method directly inside your login_screen.dart file
   void _handleLogin() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -45,7 +45,6 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text,
       );
 
-
       if (userCredential.user != null) {
         DocumentSnapshot userDoc = await FirebaseFirestore.instance
             .collection('users')
@@ -54,31 +53,48 @@ class _LoginScreenState extends State<LoginScreen> {
 
         String uniqueUserCode = "Guest";
         String uniqueUserSubCode = "000000";
+        String userRole = "User"; // Default fallback role
 
         if (userDoc.exists && userDoc.data() != null) {
           final data = userDoc.data() as Map<String, dynamic>;
           uniqueUserCode = data['userCode'] ?? uniqueUserCode;
           uniqueUserSubCode = data['userSubCode'] ?? uniqueUserSubCode;
+          userRole = data['role'] ?? userRole; // Fetch user role configuration mapping parameters
         }
 
         if (!mounted) return;
         setState(() => _isLoading = false);
 
-        // Route into the live synced dashboard profile setup cleanly
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PrismMainDashboard(
-              userCode: uniqueUserCode,
-              userSubCode: uniqueUserSubCode,
+        // ==========================================
+        // DYNAMIC ROLE-BASED WORKSPACE ROUTING
+        // ==========================================
+        if (userRole == "Administrator" || userRole == "Admin") {
+          // Forward directly to the clean Admin workspace screen file
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PrismAdminDashboard(
+                userCode: uniqueUserCode,
+                userSubCode: uniqueUserSubCode,
+              ),
             ),
-          ),
-        );
+          );
+        } else {
+          // Forward to the regular User environment dashboard file
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PrismMainDashboard(
+                userCode: uniqueUserCode,
+                userSubCode: uniqueUserSubCode,
+              ),
+            ),
+          );
+        }
       }
     } on FirebaseAuthException catch (e) {
       setState(() => _isLoading = false);
 
-      // Catch handling errors transparently and display alert notifications
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
@@ -94,12 +110,12 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [
-          // Background Cargo Ship Image Backdrop
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
@@ -108,8 +124,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-
-          // Top Decorative Bar (Precise Brand Gradient match)
           Positioned(
             top: 0, left: 0, right: 0,
             child: Container(
@@ -123,8 +137,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-
-          // Navigation Back Arrow (Top Left)
           Positioned(
             top: 45, left: 20,
             child: IconButton(
@@ -132,26 +144,22 @@ class _LoginScreenState extends State<LoginScreen> {
               onPressed: () => Navigator.pop(context),
             ),
           ),
-
-          // Foreground Form Container Layout Sequence
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 child: Form(
-                  key: _formKey, // Form validation framework hook binding execution context
+                  key: _formKey,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const SizedBox(height: 20),
-
                       Image.asset(
                         'asset/MLA.png',
                         height: 180,
                         fit: BoxFit.contain,
                       ),
                       const SizedBox(height: 16),
-
                       RichText(
                         textAlign: TextAlign.center,
                         text: const TextSpan(
@@ -165,10 +173,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ],
                         ),
                       ),
-
                       const SizedBox(height: 36),
-
-                      // Centralized Interactive Login Card Matrix
                       Container(
                         width: 480,
                         padding: const EdgeInsets.all(36),
@@ -182,7 +187,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // Brand System Icon Image Container
                             Container(
                               padding: const EdgeInsets.all(3),
                               decoration: BoxDecoration(
@@ -192,7 +196,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               child: Image.asset('asset/login-prism.png'),
                             ),
                             const SizedBox(height: 16),
-
                             const Text(
                               "Inventory System",
                               style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: brandBlue),
@@ -202,8 +205,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               style: TextStyle(fontSize: 16, color: Colors.grey),
                             ),
                             const SizedBox(height: 32),
-
-                            // Dynamic Forms Content Pipeline Inputs
                             _buildTextField(
                               label: "Email Address",
                               controller: _emailController,
@@ -212,10 +213,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 if (value == null || value.trim().isEmpty) {
                                   return "Email field is required";
                                 }
-
-                                // Updated robust regex: allows letters, numbers, dots, hyphens, and any length of TLD (like .digital)
                                 final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-
                                 if (!emailRegex.hasMatch(value.trim())) {
                                   return "Enter a valid email address context";
                                 }
@@ -238,13 +236,11 @@ class _LoginScreenState extends State<LoginScreen> {
                               },
                             ),
                             const SizedBox(height: 36),
-
-                            // Dynamic Action Action Trigger Button Form Element
                             SizedBox(
                               width: double.infinity,
                               height: 56,
                               child: ElevatedButton(
-                                onPressed: _isLoading ? null : _handleLogin, // Locks tracking loops while authenticating
+                                onPressed: _isLoading ? null : _handleLogin,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: brandBlue,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -276,7 +272,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Consistent Input Field Template styled to match design spec references
   Widget _buildTextField({
     required String label,
     required TextEditingController controller,
@@ -314,7 +309,7 @@ class _LoginScreenState extends State<LoginScreen> {
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               isDense: true,
               suffixIcon: suffixIcon,
-              errorStyle: const TextStyle(height: 0.8, fontSize: 12), // Keeps errors nicely aligned below text boxes
+              errorStyle: const TextStyle(height: 0.8, fontSize: 12),
             ),
           ),
         ),

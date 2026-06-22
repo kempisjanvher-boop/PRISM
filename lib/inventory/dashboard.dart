@@ -157,7 +157,7 @@ class _PrismMainDashboardState extends State<PrismMainDashboard> {
                 // Dynamic Workspace Display Switcher
                 Expanded(
                   child: _activePageIndex == 1
-                      ? const PrismInventoryPage()
+                      ? PrismInventoryPage(userCode: widget.userCode)
                       : _activePageIndex == 2
                       ? _buildSettingsWorkspace()
                       : _buildDashboardWorkspace(),

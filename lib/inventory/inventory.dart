@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PrismInventoryPage extends StatefulWidget {
-  const PrismInventoryPage({Key? key}) : super(key: key);
+  final String userCode;
+
+  const PrismInventoryPage({
+    Key? key,
+    required this.userCode,
+  }) : super(key: key);
 
   @override
   State<PrismInventoryPage> createState() => _PrismInventoryPageState();
@@ -325,6 +330,7 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
                           'qty': targetDelta,
                           'timestamp': FieldValue.serverTimestamp(),
                           'dateString': "06-22-2026",
+                          'createdBy': widget.userCode,
                         });
 
                         if (context.mounted) Navigator.pop(context);
@@ -525,6 +531,7 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
                         'qty': deltaQty,
                         'timestamp': FieldValue.serverTimestamp(),
                         'dateString': "06-22-2026",
+                        'createdBy': widget.userCode,
                       });
 
                       if (context.mounted) Navigator.pop(context);
@@ -697,6 +704,7 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
                           'qty': qty,
                           'timestamp': FieldValue.serverTimestamp(),
                           'dateString': "06-22-2026",
+                          'createdBy': widget.userCode,
                         });
 
                         if (context.mounted) Navigator.pop(context);
