@@ -2,16 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../inventory/inventory.dart';
+import 'users_page.dart';
+import 'reports_page.dart';
+import 'settings_page.dart';
 
 class PrismAdminDashboard extends StatefulWidget {
   final String userCode;
   final String userSubCode;
 
   const PrismAdminDashboard({
-    Key? key,
+    super.key,
     required this.userCode,
     required this.userSubCode,
-  }) : super(key: key);
+  });
 
   @override
   State<PrismAdminDashboard> createState() => _PrismAdminDashboardState();
@@ -112,9 +115,9 @@ class _PrismAdminDashboardState extends State<PrismAdminDashboard> {
                     children: [
                       _buildDashboardWorkspace(),
                       PrismInventoryPage(userCode: widget.userCode),
-                      const Center(child: Text("Users Panel")),
-                      const Center(child: Text("Reports Panel")),
-                      const Center(child: Text("Settings Panel")),
+                      const UsersPage(),
+                      const ReportsPage(),
+                      const SettingsPage(),
                     ],
                   ),
                 ),
