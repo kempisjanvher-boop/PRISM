@@ -212,7 +212,7 @@ class _PrismAdminDashboardState extends State<PrismAdminDashboard> {
                                     String dateString = data['dateString'] ?? '';
 
                                     // Capture who completed the task for auditing visibility
-                                    String employeeName = data['createdBy'] ?? data['userCode'] ?? data['usercode'] ?? 'Employee Account';
+                                    String employeeName = data['createdBy'] ?? data['userCode'] ?? data['usercode'] ?? 'N/A';
 
                                     return Padding(
                                       padding: const EdgeInsets.symmetric(vertical: 4.0),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class UsersPage extends StatefulWidget {
   const UsersPage({super.key});
@@ -11,9 +12,55 @@ class UsersPage extends StatefulWidget {
 class _UsersPageState extends State<UsersPage> {
   static const Color navNavy = Color(0xFF0C245E);
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
   String _selectedRole = 'Employee';
+  bool _hasMigrated = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _migrateExistingUsers();
+  }
+
+  Future<String> _generateUniqueUserCode(String role) async {
+    String prefix = role == 'Admin' ? '69' : '67';
+    String startCode = '${prefix}00001';
+    String endCode = '${prefix}99999';
+    
+    QuerySnapshot snapshot = await _firestore
+        .collection('users')
+        .where('userCode', isGreaterThanOrEqualTo: startCode)
+        .where('userCode', isLessThanOrEqualTo: endCode)
+        .get();
+    
+    int maxNumber = 0;
+    for (var doc in snapshot.docs) {
+      String userCode = doc['userCode'] as String;
+      int number = int.tryParse(userCode.substring(2)) ?? 0;
+      if (number > maxNumber) maxNumber = number;
+    }
+    
+    return '$prefix${(maxNumber + 1).toString().padLeft(5, '0')}';
+  }
+
+  Future<void> _migrateExistingUsers() async {
+    QuerySnapshot snapshot = await _firestore.collection('users').get();
+    
+    for (var doc in snapshot.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      String role = data['role'] ?? 'Employee';
+      String? existingUserCode = data['userCode'];
+      
+      if (existingUserCode == null || existingUserCode.isEmpty) {
+        String newUserCode = await _generateUniqueUserCode(role);
+        await _firestore.collection('users').doc(doc.id).update({
+          'userCode': newUserCode,
+          'userSubCode': '000000',
+        });
+      }
+    }
+  }
 
   void _showAddUserDialog() {
     showDialog(
@@ -24,17 +71,18 @@ class _UsersPageState extends State<UsersPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(labelText: 'Full Name', border: OutlineInputBorder()),
-            ),
-            const SizedBox(height: 16),
-            TextField(
               controller: _emailController,
               decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()),
             ),
             const SizedBox(height: 16),
+            TextField(
+              controller: _passwordController,
+              decoration: const InputDecoration(labelText: 'Password', border: OutlineInputBorder()),
+              obscureText: true,
+            ),
+            const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _selectedRole,
+              initialValue: _selectedRole,
               decoration: const InputDecoration(labelText: 'Role', border: OutlineInputBorder()),
               items: const ['Admin', 'Employee', 'Manager'].map((role) {
                 return DropdownMenuItem(value: role, child: Text(role));
@@ -46,26 +94,43 @@ class _UsersPageState extends State<UsersPage> {
         actions: [
           TextButton(
             onPressed: () {
-              _nameController.clear();
               _emailController.clear();
+              _passwordController.clear();
               Navigator.pop(context);
             },
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
-              if (_nameController.text.isNotEmpty && _emailController.text.isNotEmpty) {
-                await _firestore.collection('users').add({
-                  'name': _nameController.text,
-                  'email': _emailController.text,
-                  'role': _selectedRole,
-                  'status': 'Active',
-                  'lastLogin': 'Never',
-                  'createdAt': FieldValue.serverTimestamp(),
-                });
-                _nameController.clear();
-                _emailController.clear();
-                Navigator.pop(context);
+              if (_emailController.text.isNotEmpty && _passwordController.text.isNotEmpty) {
+                try {
+                  UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+                    email: _emailController.text.trim(),
+                    password: _passwordController.text,
+                  );
+                  
+                  String userCode = await _generateUniqueUserCode(_selectedRole);
+                  
+                  await _firestore.collection('users').doc(userCredential.user!.uid).set({
+                    'email': _emailController.text,
+                    'role': _selectedRole,
+                    'userCode': userCode,
+                    'userSubCode': '000000',
+                    'status': 'Active',
+                    'lastLogin': 'Never',
+                    'createdAt': FieldValue.serverTimestamp(),
+                  });
+                  
+                  _emailController.clear();
+                  _passwordController.clear();
+                  Navigator.pop(context);
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error creating user: ${e.toString()}')),
+                    );
+                  }
+                }
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: navNavy),
@@ -342,89 +407,6 @@ class _UsersPageState extends State<UsersPage> {
     );
   }
 
-  void _editUser(String docId, Map<String, dynamic> data) {
-    _nameController.text = data['name'] ?? '';
-    _emailController.text = data['email'] ?? '';
-    _selectedRole = data['role'] ?? 'Employee';
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit User', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(labelText: 'Full Name', border: OutlineInputBorder()),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()),
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              value: _selectedRole,
-              decoration: const InputDecoration(labelText: 'Role', border: OutlineInputBorder()),
-              items: const ['Admin', 'Employee', 'Manager'].map((role) {
-                return DropdownMenuItem(value: role, child: Text(role));
-              }).toList(),
-              onChanged: (value) => setState(() => _selectedRole = value!),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              _nameController.clear();
-              _emailController.clear();
-              Navigator.pop(context);
-            },
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await _firestore.collection('users').doc(docId).update({
-                'name': _nameController.text,
-                'email': _emailController.text,
-                'role': _selectedRole,
-              });
-              _nameController.clear();
-              _emailController.clear();
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: navNavy),
-            child: const Text('Update', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _deleteUser(String docId) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete User', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-        content: const Text('Are you sure you want to delete this user?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await _firestore.collection('users').doc(docId).delete();
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildUserRow({
     required String name,

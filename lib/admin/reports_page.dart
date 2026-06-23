@@ -22,7 +22,7 @@ class _ReportsPageState extends State<ReportsPage> {
         int categories = 0;
         int totalUnits = 0;
         Map<String, int> categoryCount = {};
-        Map<String, int> statusCount = {'In Stock': 0, 'Low Stock': 0, 'Out of Stock': 0};
+        Map<String, int> statusCount = {'In stock': 0, 'Low Stock': 0, 'Out of Stock': 0};
 
         if (snapshot.hasData) {
           final docs = snapshot.data!.docs;
@@ -33,14 +33,19 @@ class _ReportsPageState extends State<ReportsPage> {
             final data = doc.data() as Map<String, dynamic>;
             String category = data['category'] ?? 'Uncategorized';
             int quantity = data['quantity'] ?? 0;
-            String status = data['status'] ?? 'In Stock';
+            String status = data['status'] ?? 'In stock';
             
             uniqueCategories.add(category);
             categoryCount[category] = (categoryCount[category] ?? 0) + 1;
             totalUnits += quantity;
             
-            if (statusCount.containsKey(status)) {
-              statusCount[status] = statusCount[status]! + 1;
+            // Match dashboard logic: exact match for Low Stock and Out of Stock, everything else is In stock
+            if (status == "Low Stock") {
+              statusCount['Low Stock'] = (statusCount['Low Stock'] ?? 0) + 1;
+            } else if (status == "Out of Stock") {
+              statusCount['Out of Stock'] = (statusCount['Out of Stock'] ?? 0) + 1;
+            } else {
+              statusCount['In stock'] = (statusCount['In stock'] ?? 0) + 1;
             }
           }
           categories = uniqueCategories.length;
@@ -345,8 +350,8 @@ class _ReportsPageState extends State<ReportsPage> {
                                       centerSpaceRadius: 60,
                                       sections: [
                                         PieChartSectionData(
-                                          value: statusCount['In Stock']?.toDouble() ?? 0,
-                                          title: '${statusCount['In Stock'] ?? 0}',
+                                          value: statusCount['In stock']?.toDouble() ?? 0,
+                                          title: '${statusCount['In stock'] ?? 0}',
                                           color: const Color(0xFF16A34A),
                                           radius: 50,
                                           titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
@@ -370,7 +375,7 @@ class _ReportsPageState extends State<ReportsPage> {
                                   ),
                           ),
                           const SizedBox(height: 16),
-                          _buildLegend('In Stock', const Color(0xFF16A34A)),
+                          _buildLegend('In stock', const Color(0xFF16A34A)),
                           _buildLegend('Low Stock', const Color(0xFFD97706)),
                           _buildLegend('Out of Stock', const Color(0xFFEF4444)),
                         ],
