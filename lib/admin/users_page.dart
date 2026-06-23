@@ -1,0 +1,467 @@
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+class UsersPage extends StatefulWidget {
+  const UsersPage({super.key});
+
+  @override
+  State<UsersPage> createState() => _UsersPageState();
+}
+
+class _UsersPageState extends State<UsersPage> {
+  static const Color navNavy = Color(0xFF0C245E);
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  String _selectedRole = 'Employee';
+
+  void _showAddUserDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add New User', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(labelText: 'Full Name', border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _emailController,
+              decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              value: _selectedRole,
+              decoration: const InputDecoration(labelText: 'Role', border: OutlineInputBorder()),
+              items: const ['Admin', 'Employee', 'Manager'].map((role) {
+                return DropdownMenuItem(value: role, child: Text(role));
+              }).toList(),
+              onChanged: (value) => setState(() => _selectedRole = value!),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              _nameController.clear();
+              _emailController.clear();
+              Navigator.pop(context);
+            },
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (_nameController.text.isNotEmpty && _emailController.text.isNotEmpty) {
+                await _firestore.collection('users').add({
+                  'name': _nameController.text,
+                  'email': _emailController.text,
+                  'role': _selectedRole,
+                  'status': 'Active',
+                  'lastLogin': 'Never',
+                  'createdAt': FieldValue.serverTimestamp(),
+                });
+                _nameController.clear();
+                _emailController.clear();
+                Navigator.pop(context);
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: navNavy),
+            child: const Text('Add User', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _firestore.collection('users').snapshots(),
+      builder: (context, snapshot) {
+        int totalUsers = 0;
+        int adminCount = 0;
+        int activeCount = 0;
+
+        if (snapshot.hasData) {
+          final docs = snapshot.data!.docs;
+          totalUsers = docs.length;
+          for (var doc in docs) {
+            final data = doc.data() as Map<String, dynamic>;
+            if (data['role'] == 'Admin') adminCount++;
+            if (data['status'] == 'Active') activeCount++;
+          }
+        }
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(40.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("User Management", style: TextStyle(fontSize: 34, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              Text("Manage and monitor all user accounts", style: TextStyle(color: Colors.grey.shade600, fontSize: 16)),
+              const SizedBox(height: 36),
+
+              // Summary Cards
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(28),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.grey.shade300, width: 1),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 32,
+                            offset: const Offset(0, 12),
+                            spreadRadius: 0,
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE0F2FE),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.people_outline, color: Color(0xFF0369A1), size: 32),
+                          ),
+                          const SizedBox(height: 24),
+                          Text(totalUsers.toString(), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 4),
+                          Text("Total Users", style: TextStyle(color: Colors.grey.shade400, fontSize: 15)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 24),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(28),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.grey.shade300, width: 1),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 32,
+                            offset: const Offset(0, 12),
+                            spreadRadius: 0,
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF3C7),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.admin_panel_settings, color: Color(0xFFD97706), size: 32),
+                          ),
+                          const SizedBox(height: 24),
+                          Text(adminCount.toString(), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 4),
+                          Text("Administration", style: TextStyle(color: Colors.grey.shade400, fontSize: 15)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 24),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(28),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.grey.shade300, width: 1),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 32,
+                            offset: const Offset(0, 12),
+                            spreadRadius: 0,
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFDCFCE7),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.check_circle_outline, color: Color(0xFF16A34A), size: 32),
+                          ),
+                          const SizedBox(height: 24),
+                          Text(activeCount.toString(), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 4),
+                          Text("Active Users", style: TextStyle(color: Colors.grey.shade400, fontSize: 15)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 36),
+
+              // Users Table
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade300, width: 1),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 32,
+                      offset: const Offset(0, 12),
+                      spreadRadius: 0,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text("All Users", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF4ADE80),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF4ADE80).withValues(alpha: 0.5),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: _showAddUserDialog,
+                                borderRadius: BorderRadius.circular(12),
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.add, color: Colors.white, size: 20),
+                                      SizedBox(width: 8),
+                                      Text("Add User", style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      color: const Color(0xFFEFEFF4),
+                      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 32),
+                      child: const Row(
+                        children: [
+                          Expanded(flex: 3, child: Text("Name", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
+                          Expanded(flex: 3, child: Text("Email", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
+                          Expanded(flex: 2, child: Text("Role", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
+                          Expanded(flex: 2, child: Text("Status", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
+                          Expanded(flex: 2, child: Text("Last Login", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
+                          SizedBox(width: 80),
+                        ],
+                      ),
+                    ),
+                    if (!snapshot.hasData)
+                      const Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (snapshot.data!.docs.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Center(child: Text("No users found", style: TextStyle(color: Colors.grey))),
+                      )
+                    else
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: snapshot.data!.docs.length,
+                        padding: EdgeInsets.zero,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          var doc = snapshot.data!.docs[index];
+                          final data = doc.data() as Map<String, dynamic>;
+                          String status = data['status'] ?? 'Active';
+                          Color statusBg = const Color(0xFFDCFCE7);
+                          Color statusText = const Color(0xFF16A34A);
+
+                          if (status != "Active") {
+                            statusBg = const Color(0xFFFEE2E2);
+                            statusText = const Color(0xFFEF4444);
+                          }
+
+                          return _buildUserRow(
+                            name: data['name'] ?? 'N/A',
+                            email: data['email'] ?? 'N/A',
+                            role: data['role'] ?? 'Employee',
+                            lastLogin: data['lastLogin'] ?? 'Never',
+                            statusText: status,
+                            statusColor: statusBg,
+                            textColor: statusText,
+                            docId: doc.id,
+                            userData: data,
+                          );
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _editUser(String docId, Map<String, dynamic> data) {
+    _nameController.text = data['name'] ?? '';
+    _emailController.text = data['email'] ?? '';
+    _selectedRole = data['role'] ?? 'Employee';
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit User', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(labelText: 'Full Name', border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _emailController,
+              decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              value: _selectedRole,
+              decoration: const InputDecoration(labelText: 'Role', border: OutlineInputBorder()),
+              items: const ['Admin', 'Employee', 'Manager'].map((role) {
+                return DropdownMenuItem(value: role, child: Text(role));
+              }).toList(),
+              onChanged: (value) => setState(() => _selectedRole = value!),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              _nameController.clear();
+              _emailController.clear();
+              Navigator.pop(context);
+            },
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await _firestore.collection('users').doc(docId).update({
+                'name': _nameController.text,
+                'email': _emailController.text,
+                'role': _selectedRole,
+              });
+              _nameController.clear();
+              _emailController.clear();
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: navNavy),
+            child: const Text('Update', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _deleteUser(String docId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete User', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        content: const Text('Are you sure you want to delete this user?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await _firestore.collection('users').doc(docId).delete();
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserRow({
+    required String name,
+    required String email,
+    required String role,
+    required String lastLogin,
+    required String statusText,
+    required Color statusColor,
+    required Color textColor,
+    required String docId,
+    required Map<String, dynamic> userData,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: Text(name, style: const TextStyle(fontSize: 16, color: Colors.black)),
+          ),
+          Expanded(flex: 3, child: Text(email, style: TextStyle(color: Colors.grey.shade600, fontSize: 15))),
+          Expanded(flex: 2, child: Text(role, style: TextStyle(color: Colors.grey.shade600, fontSize: 15))),
+          Expanded(
+            flex: 2,
+            child: UnconstrainedBox(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(20)),
+                child: Text(statusText, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13)),
+              ),
+            ),
+          ),
+          Expanded(flex: 2, child: Text(lastLogin, style: TextStyle(color: Colors.grey.shade600, fontSize: 15))),
+          const SizedBox(width: 80),
+        ],
+      ),
+    );
+  }
+}
