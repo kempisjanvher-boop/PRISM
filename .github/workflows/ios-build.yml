@@ -1,0 +1,45 @@
+name: Build Flutter iOS (iPad Air)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Install Dependencies
+        run: |
+          flutter pub get
+          cd ios && pod install
+
+      - name: Build iOS App Bundle
+        run: flutter build ios --no-codesign --release
+
+      - name: Zip iOS Build
+        run: |
+          mkdir -p build-output
+          mv build/ios/iphoneos/Runner.app build-output/
+          cd build-output && zip -r ../ios-build.zip Runner.app
+
+      - name: Upload Build Artifact
+        uses: actions/artifacts@v4
+        with:
+          name: ipad-air-app-build
+          path: ios-build.zip
