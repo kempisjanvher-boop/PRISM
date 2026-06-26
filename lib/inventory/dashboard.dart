@@ -8,10 +8,10 @@ class PrismMainDashboard extends StatefulWidget {
   final String userSubCode;
 
   const PrismMainDashboard({
-    Key? key,
+    super.key,
     required this.userCode,
     required this.userSubCode,
-  }) : super(key: key);
+  });
 
   @override
   State<PrismMainDashboard> createState() => _PrismMainDashboardState();
@@ -24,6 +24,7 @@ class _PrismMainDashboardState extends State<PrismMainDashboard> {
   int _activePageIndex = 0;
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  String? _passedInventoryFilter;
 
   String _getCurrentSystemDate() {
     final now = DateTime.now();
@@ -61,7 +62,7 @@ class _PrismMainDashboardState extends State<PrismMainDashboard> {
                   padding: const EdgeInsets.only(top: 48.0, left: 40.0, right: 40.0, bottom: 24.0),
                   child: Row(
                     children: [
-                      Image.asset('asset/MLA.png', height: 56, fit: BoxFit.contain),
+                      Image.asset('asset/MLA.png', height: 56, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Icon(Icons.apps, size: 40, color: navNavy)),
                       const SizedBox(width: 16),
                       const Text(
                         "Inventory",
@@ -90,7 +91,6 @@ class _PrismMainDashboardState extends State<PrismMainDashboard> {
                   ),
                 ),
 
-                // Updated to accept index routing pointers
                 _buildSidebarRoute(index: 0, icon: Icons.home_outlined, title: "Dashboard"),
                 _buildSidebarRoute(index: 1, icon: Icons.inventory_2_outlined, title: "Inventory"),
                 _buildSidebarRoute(index: 2, icon: Icons.settings_outlined, title: "Settings"),
@@ -141,7 +141,6 @@ class _PrismMainDashboardState extends State<PrismMainDashboard> {
           Expanded(
             child: Column(
               children: [
-                // Persistent Synchronized Sticky Header
                 Container(
                   height: 85,
                   color: Colors.white,
@@ -154,10 +153,12 @@ class _PrismMainDashboardState extends State<PrismMainDashboard> {
                 ),
                 const Divider(height: 1, thickness: 1.2),
 
-                // Dynamic Workspace Display Switcher
                 Expanded(
                   child: _activePageIndex == 1
-                      ? PrismInventoryPage(userCode: widget.userCode)
+                      ? PrismInventoryPage(
+                    userCode: widget.userCode,
+                    initialStatusFilter: _passedInventoryFilter,
+                  )
                       : _activePageIndex == 2
                       ? _buildSettingsWorkspace()
                       : _buildDashboardWorkspace(),
@@ -207,18 +208,16 @@ class _PrismMainDashboardState extends State<PrismMainDashboard> {
               ),
               const SizedBox(height: 36),
 
-              // SECTION 1: PROFILE CARD COMPONENT
               Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF3F4F6), // Matches card grey base border background
+                  color: const Color(0xFFF3F4F6),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.grey.shade300),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Header band block
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
                       child: Row(
@@ -234,7 +233,6 @@ class _PrismMainDashboardState extends State<PrismMainDashboard> {
                     ),
                     const Divider(height: 1, thickness: 1.2),
 
-                    // Inputs grouping inner box frame wrapper
                     Container(
                       color: Colors.white,
                       width: double.infinity,
@@ -256,7 +254,6 @@ class _PrismMainDashboardState extends State<PrismMainDashboard> {
                           const SizedBox(height: 8),
                           _buildSettingsInputField(controller: roleController, hint: "Staff / Admin pointer role type profile details", isReadOnly: true),
 
-                          // Save Action Button Trigger
                           const SizedBox(height: 24),
                           Align(
                             alignment: Alignment.centerRight,
@@ -291,7 +288,6 @@ class _PrismMainDashboardState extends State<PrismMainDashboard> {
               ),
               const SizedBox(height: 36),
 
-              // SECTION 2: SECURITY CARD COMPONENT
               Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
@@ -329,7 +325,7 @@ class _PrismMainDashboardState extends State<PrismMainDashboard> {
                                 await FirebaseAuth.instance.sendPasswordResetEmail(email: emailAddress);
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Password reset tracking payload link dispatched directly to $emailAddress')),
+                                    SnackBar(content: Text('Password reset link dispatched directly to $emailAddress')),
                                   );
                                 }
                               }
@@ -361,11 +357,7 @@ class _PrismMainDashboardState extends State<PrismMainDashboard> {
   Widget _buildSettingsLabel(String text) {
     return Text(
       text,
-      style: TextStyle(
-        fontSize: 15,
-        fontWeight: FontWeight.w500,
-        color: Colors.grey.shade500, // Matches text field asset colors
-      ),
+      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.grey.shade500),
     );
   }
 
@@ -379,7 +371,7 @@ class _PrismMainDashboardState extends State<PrismMainDashboard> {
       decoration: BoxDecoration(
         color: isReadOnly ? const Color(0xFFF9FAFB) : Colors.white,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.grey.shade200), // Clean layout border look
+        border: Border.all(color: Colors.grey.shade200),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: TextField(
@@ -395,10 +387,9 @@ class _PrismMainDashboardState extends State<PrismMainDashboard> {
     );
   }
 
-// Extracted live-calculated dashboard workspace logic showing unique items and total quantities
   Widget _buildDashboardWorkspace() {
     return StreamBuilder<QuerySnapshot>(
-      stream: _firestore.collection('inventory').snapshots(),
+      stream: _firestore.collection('master_list').snapshots(),
       builder: (context, snapshot) {
         int uniqueItemsCount = 0;
         int totalPhysicalQuantity = 0;
@@ -407,21 +398,21 @@ class _PrismMainDashboardState extends State<PrismMainDashboard> {
 
         if (snapshot.hasData) {
           final docs = snapshot.data!.docs;
-          uniqueItemsCount = docs.length; // Number of unique products
+          uniqueItemsCount = docs.length;
 
           for (var doc in docs) {
             final data = doc.data() as Map<String, dynamic>;
-            final String status = data['status'] ?? 'In stock';
             final int quantity = data['quantity'] ?? 0;
+            final String rawMin = data['minLimit'] ?? "Min: 10";
 
-            // Aggregate the cumulative stock quantities across all inventory lines
+            final int parsedMinLimit = int.tryParse(rawMin.replaceAll(RegExp(r'[^0-9]'), '')) ?? 10;
+
             totalPhysicalQuantity += quantity;
 
-            // Aggregate counts dynamically based on row status fields
-            if (status == "Low Stock") {
-              lowStock++;
-            } else if (status == "Out of Stock") {
+            if (quantity <= 0) {
               outOfStock++;
+            } else if (quantity < parsedMinLimit) {
+              lowStock++;
             }
           }
         }
@@ -442,7 +433,6 @@ class _PrismMainDashboardState extends State<PrismMainDashboard> {
               ),
               const SizedBox(height: 36),
 
-              // Updated Row to include both Total Items and Total Quantity metrics
               Row(
                 children: [
                   Expanded(
@@ -465,23 +455,43 @@ class _PrismMainDashboardState extends State<PrismMainDashboard> {
                     ),
                   ),
                   const SizedBox(width: 24),
+
                   Expanded(
-                    child: _buildMetricCard(
-                      title: "Low Stock Items",
-                      count: lowStock.toString(),
-                      icon: Icons.lightbulb_outline,
-                      badgeColor: const Color(0xFFFEF3C7),
-                      iconColor: const Color(0xFFD97706),
+                    child: InkWell(
+                      onTap: () {
+                        setState(() {
+                          _passedInventoryFilter = "Low Stock";
+                          _activePageIndex = 1;
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(16),
+                      child: _buildMetricCard(
+                        title: "Low Stock Items",
+                        count: lowStock.toString(),
+                        icon: Icons.lightbulb_outline,
+                        badgeColor: const Color(0xFFFEF3C7),
+                        iconColor: const Color(0xFFD97706),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 24),
+
                   Expanded(
-                    child: _buildMetricCard(
-                      title: "Out of Stock Items",
-                      count: outOfStock.toString(),
-                      icon: Icons.trending_up_sharp,
-                      badgeColor: const Color(0xFFFEE2E2),
-                      iconColor: const Color(0xFFEF4444),
+                    child: InkWell(
+                      onTap: () {
+                        setState(() {
+                          _passedInventoryFilter = "Out of Stock";
+                          _activePageIndex = 1;
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(16),
+                      child: _buildMetricCard(
+                        title: "Out of Stock Items",
+                        count: outOfStock.toString(),
+                        icon: Icons.trending_up_sharp,
+                        badgeColor: const Color(0xFFFEE2E2),
+                        iconColor: const Color(0xFFEF4444),
+                      ),
                     ),
                   ),
                 ],
@@ -516,9 +526,34 @@ class _PrismMainDashboardState extends State<PrismMainDashboard> {
 
                                 return ListView.separated(
                                   itemCount: actSnapshot.data!.docs.length,
-                                  separatorBuilder: (_, __) => const Divider(height: 24),
+                                  separatorBuilder: (_, _) => const Divider(height: 24),
                                   itemBuilder: (context, index) {
                                     var doc = actSnapshot.data!.docs[index];
+                                    final data = doc.data() as Map<String, dynamic>;
+
+                                    String itemName = data['itemName'] ?? '';
+                                    String refNumber = data['refNumber'] ?? '';
+                                    int qty = data['qty'] ?? 0;
+                                    String dateString = data['dateString'] ?? '';
+
+                                    // Deduce transactional state variations
+                                    String statusStr = (data['status'] ?? '').toString().toLowerCase();
+                                    bool isSubtraction = qty < 0 ||
+                                        statusStr.contains('shipped') ||
+                                        statusStr.contains('minus') ||
+                                        statusStr.contains('sub') ||
+                                        statusStr.contains('out');
+
+                                    String qtyDisplay;
+                                    Color deltaColor;
+                                    if (isSubtraction) {
+                                      qtyDisplay = "-${qty.abs()}";
+                                      deltaColor = Colors.red.shade700;
+                                    } else {
+                                      qtyDisplay = "+$qty";
+                                      deltaColor = Colors.green.shade700;
+                                    }
+
                                     return Padding(
                                       padding: const EdgeInsets.symmetric(vertical: 4.0),
                                       key: ValueKey(doc.id),
@@ -528,17 +563,24 @@ class _PrismMainDashboardState extends State<PrismMainDashboard> {
                                           Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              Text(doc['itemName'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
+                                              Text(itemName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
                                               const SizedBox(height: 4),
-                                              Text(doc['refNumber'] ?? '', style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
+                                              Text(refNumber, style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
                                             ],
                                           ),
                                           Column(
                                             crossAxisAlignment: CrossAxisAlignment.end,
                                             children: [
-                                              Text("Qty: ${doc['qty'] ?? 0}", style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
+                                              Text(
+                                                "Qty: $qtyDisplay",
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 17,
+                                                  color: deltaColor,
+                                                ),
+                                              ),
                                               const SizedBox(height: 4),
-                                              Text(doc['dateString'] ?? '', style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
+                                              Text(dateString, style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
                                             ],
                                           )
                                         ],
@@ -616,6 +658,7 @@ class _PrismMainDashboardState extends State<PrismMainDashboard> {
       onTap: () {
         setState(() {
           _activePageIndex = index;
+          _passedInventoryFilter = null;
         });
       },
       child: Container(
@@ -696,7 +739,7 @@ class _PrismMainDashboardState extends State<PrismMainDashboard> {
               children: [
                 Text(title, style: TextStyle(color: accentColor, fontWeight: FontWeight.bold, fontSize: 16)),
                 const SizedBox(height: 4),
-                Text(subtitle, style: TextStyle(color: accentColor.withOpacity(0.8), fontSize: 14)),
+                Text(subtitle, style: TextStyle(color: accentColor.withValues(alpha: 0.8), fontSize: 14)),
               ],
             ),
           )

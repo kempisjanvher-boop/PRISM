@@ -4,6 +4,8 @@ import 'scan_handler.dart';
 import './accounts/login_screen.dart';
 
 class PrismOnboardingScreen extends StatelessWidget {
+  const PrismOnboardingScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -25,8 +27,8 @@ class PrismOnboardingScreen extends StatelessWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.blue.withOpacity(0.2),
-                  Colors.black.withOpacity(0.6),
+                  Colors.blue.withValues(alpha: 0.2),
+                  Colors.black.withValues(alpha: 0.6),
                 ],
               ),
             ),
@@ -137,7 +139,7 @@ class PrismOnboardingScreen extends StatelessWidget {
                           );
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0F1B54).withOpacity(0.8),
+                          backgroundColor: const Color(0xFF0F1B54).withValues(alpha: 0.8),
                           padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 22), // Taller and broader touch target
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(40),
@@ -182,7 +184,7 @@ class PrismOnboardingScreen extends StatelessWidget {
         width: 360, // Expanded width base from 260 to fit large aspect ratios beautifully
         padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.92),
+          color: Colors.white.withValues(alpha: 0.92),
           borderRadius: BorderRadius.circular(24),
           boxShadow: const [
             BoxShadow(

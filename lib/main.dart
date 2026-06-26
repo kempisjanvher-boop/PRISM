@@ -12,6 +12,8 @@ void main() async {
 }
 
 class PrismApp extends StatelessWidget {
+  const PrismApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(

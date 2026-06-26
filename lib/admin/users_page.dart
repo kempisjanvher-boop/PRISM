@@ -15,7 +15,7 @@ class _UsersPageState extends State<UsersPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   String _selectedRole = 'Employee';
-  bool _hasMigrated = false;
+  final bool _hasMigrated = false;
 
   @override
   void initState() {
@@ -84,7 +84,7 @@ class _UsersPageState extends State<UsersPage> {
             DropdownButtonFormField<String>(
               initialValue: _selectedRole,
               decoration: const InputDecoration(labelText: 'Role', border: OutlineInputBorder()),
-              items: const ['Admin', 'Employee', 'Manager'].map((role) {
+              items: const ['Admin', 'Employee'].map((role) {
                 return DropdownMenuItem(value: role, child: Text(role));
               }).toList(),
               onChanged: (value) => setState(() => _selectedRole = value!),
@@ -371,7 +371,7 @@ class _UsersPageState extends State<UsersPage> {
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: snapshot.data!.docs.length,
                         padding: EdgeInsets.zero,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        separatorBuilder: (_, _) => const Divider(height: 1),
                         itemBuilder: (context, index) {
                           var doc = snapshot.data!.docs[index];
                           final data = doc.data() as Map<String, dynamic>;

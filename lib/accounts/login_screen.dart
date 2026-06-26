@@ -5,7 +5,7 @@ import '../inventory/dashboard.dart';
 import '../admin/dashboard_admin.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -40,26 +40,34 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
+      // 1. Authenticate with Firebase Auth
       UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
       if (userCredential.user != null) {
-        DocumentSnapshot userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .get();
-
         String uniqueUserCode = "Guest";
         String uniqueUserSubCode = "000000";
         String userRole = "User"; // Default fallback role
 
-        if (userDoc.exists && userDoc.data() != null) {
-          final data = userDoc.data() as Map<String, dynamic>;
-          uniqueUserCode = data['userCode'] ?? uniqueUserCode;
-          uniqueUserSubCode = data['userSubCode'] ?? uniqueUserSubCode;
-          userRole = data['role'] ?? userRole; // Fetch user role configuration mapping parameters
+        // 2. Fetch profile from Firestore with hardened exception catching
+        try {
+          DocumentSnapshot userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userCredential.user!.uid)
+              .get();
+
+          if (userDoc.exists && userDoc.data() != null) {
+            final data = userDoc.data() as Map<String, dynamic>;
+            uniqueUserCode = data['userCode'] ?? uniqueUserCode;
+            uniqueUserSubCode = data['userSubCode'] ?? uniqueUserSubCode;
+            userRole = data['role'] ?? userRole;
+          }
+        } catch (firestoreError) {
+          debugPrint("FIRESTORE ACCESS ERROR: $firestoreError");
+          // Rethrow to general handler or parse error directly here
+          throw Exception("Database Access Denied. Verify your Firestore Rules configuration.");
         }
 
         if (!mounted) return;
@@ -69,7 +77,6 @@ class _LoginScreenState extends State<LoginScreen> {
         // DYNAMIC ROLE-BASED WORKSPACE ROUTING
         // ==========================================
         if (userRole == "Administrator" || userRole == "Admin") {
-          // Forward directly to the clean Admin workspace screen file
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -80,7 +87,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           );
         } else {
-          // Forward to the regular User environment dashboard file
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -92,14 +98,27 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         }
       }
-    } on FirebaseAuthException catch (e) {
-      setState(() => _isLoading = false);
+    } catch (e) {
+      // Catch both Auth issues and unexpected database permission blocks gracefully
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+
+      String errorMessage = "An unexpected authentication error occurred.";
+      if (e is FirebaseAuthException) {
+        errorMessage = e.message ?? errorMessage;
+      } else if (e is FirebaseException) {
+        errorMessage = e.message ?? "Database rule blocking: ${e.toString()}";
+      } else {
+        errorMessage = e.toString().replaceAll("Exception: ", "");
+      }
 
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text("Sign In Failure"),
-          content: Text(e.message ?? "An unexpected authentication error occurred."),
+          content: Text(errorMessage),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -178,7 +197,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         width: 480,
                         padding: const EdgeInsets.all(36),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.92),
+                          color: Colors.white.withValues(alpha: 0.92),
                           borderRadius: BorderRadius.circular(24),
                           boxShadow: const [
                             BoxShadow(color: Colors.black26, blurRadius: 20, offset: Offset(0, 8))
@@ -190,7 +209,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             Container(
                               padding: const EdgeInsets.all(3),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.92),
+                                color: Colors.white.withValues(alpha: 0.92),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Image.asset('asset/login-prism.png'),

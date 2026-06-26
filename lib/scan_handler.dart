@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:math';
 
 class ScanHandlerScreen extends StatefulWidget {
+  const ScanHandlerScreen({super.key});
+
   @override
   _ScanHandlerScreenState createState() => _ScanHandlerScreenState();
 }

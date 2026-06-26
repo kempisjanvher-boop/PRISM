@@ -1,0 +1,21 @@
+﻿ReferenceNumber,Name,Category,Quantity,minLimit
+123001,Logitech Master 3S,Office Supplies,50,10
+123002,Mechanical Keyboard,Office Supplies,40,10
+123003,A4 Copy Paper (500 Sheets),Office Supplies,200,50
+123004,Wireless Presenter,Office Supplies,20,5
+123005,HP LaserJet Pro Printer,Office Supplies,8,2
+456001,Extension Cord 5m,Electrical,60,12
+456002,Universal Power Adapter,Electrical,40,10
+456003,Voltage Tester,Electrical,28,5
+456004,Junction Box Metal,Electrical,30,6
+456005,Cable Reel 25m,Electrical,10,2
+789001,USB-C Charging Cable 2m,Accessories,120,25
+789002,HDMI Cable 5m,Accessories,50,10
+789003,DisplayPort Cable 2m,Accessories,40,8
+789004,Screen Cleaning Kit,Accessories,55,10
+789005,Phone Stand,Accessories,65,12
+abc001,Rubber Mallet,Tools,20,5
+abc002,Phillips Screwdriver Set,Tools,40,10
+abc003,Flathead Screwdriver Set,Tools,40,10
+abc004,Needle Nose Pliers,Tools,30,6
+abc005,Tool Box Metal,Tools,25,5

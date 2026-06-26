@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'scan_handler.dart';
 
 class PrismMainDashboard extends StatelessWidget {
+  const PrismMainDashboard({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

@@ -25,6 +25,9 @@ class _PrismAdminDashboardState extends State<PrismAdminDashboard> {
   int _activePageIndex = 0;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // Track active filter payloads clicked from metric cards
+  String? _passedInventoryFilter;
+
   String _getCurrentSystemDate() {
     final now = DateTime.now();
     final weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -49,7 +52,7 @@ class _PrismAdminDashboardState extends State<PrismAdminDashboard> {
                   padding: const EdgeInsets.only(top: 48.0, left: 40.0, right: 40.0, bottom: 24.0),
                   child: Row(
                     children: [
-                      Image.asset('asset/MLA.png', height: 56, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Icon(Icons.apps, size: 40, color: navNavy)),
+                      Image.asset('asset/MLA.png', height: 56, fit: BoxFit.contain, errorBuilder: (_, _, _) => const Icon(Icons.apps, size: 40, color: navNavy)),
                       const SizedBox(width: 16),
                       const Text("Inventory", style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: navNavy))
                     ],
@@ -109,12 +112,15 @@ class _PrismAdminDashboardState extends State<PrismAdminDashboard> {
                 ),
                 const Divider(height: 1, thickness: 1.2),
                 Expanded(
-                  child:
-                  IndexedStack(
+                  child: IndexedStack(
                     index: _activePageIndex,
                     children: [
                       _buildDashboardWorkspace(),
-                      PrismInventoryPage(userCode: widget.userCode),
+                      PrismInventoryPage(
+                        key: ValueKey('admin_inv_filter_${_passedInventoryFilter ?? "none"}'),
+                        userCode: widget.userCode,
+                        initialStatusFilter: _passedInventoryFilter,
+                      ),
                       const UsersPage(),
                       const ReportsPage(),
                       const SettingsPage(),
@@ -131,7 +137,7 @@ class _PrismAdminDashboardState extends State<PrismAdminDashboard> {
 
   Widget _buildDashboardWorkspace() {
     return StreamBuilder<QuerySnapshot>(
-      stream: _firestore.collection('inventory').snapshots(),
+      stream: _firestore.collection('master_list').snapshots(),
       builder: (context, snapshot) {
         int uniqueItemsCount = 0;
         int lowStock = 0;
@@ -142,9 +148,16 @@ class _PrismAdminDashboardState extends State<PrismAdminDashboard> {
           uniqueItemsCount = docs.length;
           for (var doc in docs) {
             final data = doc.data() as Map<String, dynamic>;
-            final String status = data['status'] ?? 'In stock';
-            if (status == "Low Stock") lowStock++;
-            if (status == "Out of Stock") outOfStock++;
+            final int quantity = data['quantity'] ?? 0;
+            final String rawMin = data['minLimit'] ?? "Min: 10";
+
+            final int parsedMinLimit = int.tryParse(rawMin.replaceAll(RegExp(r'[^0-9]'), '')) ?? 10;
+
+            if (quantity <= 0) {
+              outOfStock++;
+            } else if (quantity < parsedMinLimit) {
+              lowStock++;
+            }
           }
         }
 
@@ -158,14 +171,38 @@ class _PrismAdminDashboardState extends State<PrismAdminDashboard> {
               Text("Here's what's happening with your inventory", style: TextStyle(color: Colors.grey.shade600, fontSize: 16)),
               const SizedBox(height: 36),
 
-              // 3-Column Metrics Row
+              // Interactive 3-Column Metrics Row
               Row(
                 children: [
                   Expanded(child: _buildMetricCard(title: "Total items", count: uniqueItemsCount.toString(), icon: Icons.inventory_2_outlined, badgeColor: const Color(0xFFE0F2FE), iconColor: const Color(0xFF0369A1))),
                   const SizedBox(width: 24),
-                  Expanded(child: _buildMetricCard(title: "Low Stock", count: lowStock.toString(), icon: Icons.error_outline_rounded, badgeColor: const Color(0xFFFEF3C7), iconColor: const Color(0xFFD97706))),
+
+                  Expanded(
+                    child: InkWell(
+                      onTap: () {
+                        setState(() {
+                          _passedInventoryFilter = "Low Stock";
+                          _activePageIndex = 1;
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(16),
+                      child: _buildMetricCard(title: "Low Stock", count: lowStock.toString(), icon: Icons.error_outline_rounded, badgeColor: const Color(0xFFFEF3C7), iconColor: const Color(0xFFD97706)),
+                    ),
+                  ),
                   const SizedBox(width: 24),
-                  Expanded(child: _buildMetricCard(title: "Out of Stock", count: outOfStock.toString(), icon: Icons.trending_up_sharp, badgeColor: const Color(0xFFFEE2E2), iconColor: const Color(0xFFEF4444))),
+
+                  Expanded(
+                    child: InkWell(
+                      onTap: () {
+                        setState(() {
+                          _passedInventoryFilter = "Out of Stock";
+                          _activePageIndex = 1;
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(16),
+                      child: _buildMetricCard(title: "Out of Stock", count: outOfStock.toString(), icon: Icons.trending_up_sharp, badgeColor: const Color(0xFFFEE2E2), iconColor: const Color(0xFFEF4444)),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 36),
@@ -173,9 +210,7 @@ class _PrismAdminDashboardState extends State<PrismAdminDashboard> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ==========================================
-                  // LIVE EMPLOYEE MONITORING FEED PANELS
-                  // ==========================================
+                  // Live Employee Monitoring Feed Panel
                   Expanded(
                     flex: 2,
                     child: Container(
@@ -190,7 +225,6 @@ class _PrismAdminDashboardState extends State<PrismAdminDashboard> {
                           const Divider(),
                           Expanded(
                             child: StreamBuilder<QuerySnapshot>(
-                              // Fetches ALL absolute actions across the system globally ordered chronologically
                               stream: _firestore.collection('activities').orderBy('timestamp', descending: true).limit(5).snapshots(),
                               builder: (context, actSnapshot) {
                                 if (!actSnapshot.hasData) return const Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(navNavy)));
@@ -200,19 +234,41 @@ class _PrismAdminDashboardState extends State<PrismAdminDashboard> {
 
                                 return ListView.separated(
                                   itemCount: actSnapshot.data!.docs.length,
-                                  separatorBuilder: (_, __) => const Divider(height: 24),
+                                  separatorBuilder: (_, _) => const Divider(height: 24),
                                   itemBuilder: (context, index) {
                                     var doc = actSnapshot.data!.docs[index];
                                     final data = doc.data() as Map<String, dynamic>;
 
-                                    // Extract data variables cleanly
                                     String itemName = data['itemName'] ?? 'Unknown Item';
                                     String refNumber = data['refNumber'] ?? 'N/A';
                                     int qty = data['qty'] ?? 0;
                                     String dateString = data['dateString'] ?? '';
-
-                                    // Capture who completed the task for auditing visibility
                                     String employeeName = data['createdBy'] ?? data['userCode'] ?? data['usercode'] ?? 'N/A';
+
+                                    // ==========================================
+                                    // HARDENED SUBTRACTION/SHIPPING TRANSACTION LOGIC
+                                    // ==========================================
+                                    String statusStr = (data['status'] ?? '').toString().toLowerCase().trim();
+
+                                    // Prints values directly to debug window console output
+                                    debugPrint("ADMIN CONSOLE LOG [$itemName]: qty=$qty, rawStatus='${data['status']}', sanitized='$statusStr'");
+
+                                    bool isSubtraction = qty < 0 ||
+                                        statusStr.contains('ship') ||
+                                        statusStr.contains('minus') ||
+                                        statusStr.contains('sub') ||
+                                        statusStr.contains('deduct') ||
+                                        statusStr.contains('out');
+
+                                    String qtyDisplay;
+                                    Color deltaColor;
+                                    if (isSubtraction) {
+                                      qtyDisplay = "-${qty.abs()}";
+                                      deltaColor = Colors.red.shade700;
+                                    } else {
+                                      qtyDisplay = "+$qty";
+                                      deltaColor = Colors.green.shade700;
+                                    }
 
                                     return Padding(
                                       padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -244,7 +300,14 @@ class _PrismAdminDashboardState extends State<PrismAdminDashboard> {
                                           Column(
                                             crossAxisAlignment: CrossAxisAlignment.end,
                                             children: [
-                                              Text("Qty: $qty", style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 16, color: Colors.black87)),
+                                              Text(
+                                                "Qty: $qtyDisplay",
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 18,
+                                                  color: deltaColor,
+                                                ),
+                                              ),
                                               const SizedBox(height: 6),
                                               Text(dateString, style: const TextStyle(color: Colors.grey, fontSize: 14)),
                                             ],
@@ -259,7 +322,12 @@ class _PrismAdminDashboardState extends State<PrismAdminDashboard> {
                           ),
                           Center(
                             child: TextButton(
-                              onPressed: () => setState(() => _activePageIndex = 1),
+                              onPressed: () {
+                                setState(() {
+                                  _passedInventoryFilter = null;
+                                  _activePageIndex = 1;
+                                });
+                              },
                               child: const Text("View All Items", style: TextStyle(color: navNavy, fontSize: 16, fontWeight: FontWeight.bold)),
                             ),
                           ),
@@ -299,7 +367,12 @@ class _PrismAdminDashboardState extends State<PrismAdminDashboard> {
   Widget _buildSidebarRoute({required int index, required IconData icon, required String title}) {
     bool isActive = _activePageIndex == index;
     return InkWell(
-      onTap: () => setState(() => _activePageIndex = index),
+      onTap: () {
+        setState(() {
+          _activePageIndex = index;
+          _passedInventoryFilter = null;
+        });
+      },
       child: Container(
         width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 40),
         decoration: BoxDecoration(color: isActive ? const Color(0xFFF3F4F6) : Colors.transparent, border: isActive ? const Border(right: BorderSide(color: navNavy, width: 6)) : null),
