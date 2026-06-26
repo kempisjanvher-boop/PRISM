@@ -39,7 +39,7 @@ jobs:
           cd build-output && zip -r ../ios-build.zip Runner.app
 
       - name: Upload Build Artifact
-        uses: actions/artifacts@v4
+        uses: actions/upload-artifacts@v4
         with:
           name: ipad-air-app-build
           path: ios-build.zip
