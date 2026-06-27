@@ -15,7 +15,6 @@ class _UsersPageState extends State<UsersPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   String _selectedRole = 'Employee';
-  final bool _hasMigrated = false;
 
   @override
   void initState() {
@@ -23,35 +22,42 @@ class _UsersPageState extends State<UsersPage> {
     _migrateExistingUsers();
   }
 
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   Future<String> _generateUniqueUserCode(String role) async {
     String prefix = role == 'Admin' ? '69' : '67';
     String startCode = '${prefix}00001';
     String endCode = '${prefix}99999';
-    
+
     QuerySnapshot snapshot = await _firestore
         .collection('users')
         .where('userCode', isGreaterThanOrEqualTo: startCode)
         .where('userCode', isLessThanOrEqualTo: endCode)
         .get();
-    
+
     int maxNumber = 0;
     for (var doc in snapshot.docs) {
       String userCode = doc['userCode'] as String;
       int number = int.tryParse(userCode.substring(2)) ?? 0;
       if (number > maxNumber) maxNumber = number;
     }
-    
+
     return '$prefix${(maxNumber + 1).toString().padLeft(5, '0')}';
   }
 
   Future<void> _migrateExistingUsers() async {
     QuerySnapshot snapshot = await _firestore.collection('users').get();
-    
+
     for (var doc in snapshot.docs) {
       final data = doc.data() as Map<String, dynamic>;
       String role = data['role'] ?? 'Employee';
       String? existingUserCode = data['userCode'];
-      
+
       if (existingUserCode == null || existingUserCode.isEmpty) {
         String newUserCode = await _generateUniqueUserCode(role);
         await _firestore.collection('users').doc(doc.id).update({
@@ -65,78 +71,82 @@ class _UsersPageState extends State<UsersPage> {
   void _showAddUserDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add New User', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _passwordController,
-              decoration: const InputDecoration(labelText: 'Password', border: OutlineInputBorder()),
-              obscureText: true,
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              initialValue: _selectedRole,
-              decoration: const InputDecoration(labelText: 'Role', border: OutlineInputBorder()),
-              items: const ['Admin', 'Employee'].map((role) {
-                return DropdownMenuItem(value: role, child: Text(role));
-              }).toList(),
-              onChanged: (value) => setState(() => _selectedRole = value!),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              _emailController.clear();
-              _passwordController.clear();
-              Navigator.pop(context);
-            },
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (_emailController.text.isNotEmpty && _passwordController.text.isNotEmpty) {
-                try {
-                  UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-                    email: _emailController.text.trim(),
-                    password: _passwordController.text,
-                  );
-                  
-                  String userCode = await _generateUniqueUserCode(_selectedRole);
-                  
-                  await _firestore.collection('users').doc(userCredential.user!.uid).set({
-                    'email': _emailController.text,
-                    'role': _selectedRole,
-                    'userCode': userCode,
-                    'userSubCode': '000000',
-                    'status': 'Active',
-                    'lastLogin': 'Never',
-                    'createdAt': FieldValue.serverTimestamp(),
-                  });
-                  
-                  _emailController.clear();
-                  _passwordController.clear();
-                  Navigator.pop(context);
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error creating user: ${e.toString()}')),
-                    );
-                  }
-                }
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: navNavy),
-            child: const Text('Add User', style: TextStyle(color: Colors.white)),
-          ),
-        ],
+      builder: (context) => StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Add New User', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: _emailController,
+                    decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _passwordController,
+                    decoration: const InputDecoration(labelText: 'Password', border: OutlineInputBorder()),
+                    obscureText: true,
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: _selectedRole,
+                    decoration: const InputDecoration(labelText: 'Role', border: OutlineInputBorder()),
+                    items: const ['Admin', 'Employee'].map((role) {
+                      return DropdownMenuItem(value: role, child: Text(role));
+                    }).toList(),
+                    onChanged: (value) => setDialogState(() => _selectedRole = value!),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    _emailController.clear();
+                    _passwordController.clear();
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (_emailController.text.isNotEmpty && _passwordController.text.isNotEmpty) {
+                      try {
+                        UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+                          email: _emailController.text.trim(),
+                          password: _passwordController.text,
+                        );
+
+                        String userCode = await _generateUniqueUserCode(_selectedRole);
+
+                        await _firestore.collection('users').doc(userCredential.user!.uid).set({
+                          'email': _emailController.text.trim(),
+                          'role': _selectedRole, // Saves as 'Admin' or 'Employee'
+                          'userCode': userCode,
+                          'userSubCode': '000000',
+                          'status': 'Active',
+                          'lastLogin': 'Never',
+                          'createdAt': FieldValue.serverTimestamp(),
+                        });
+
+                        _emailController.clear();
+                        _passwordController.clear();
+                        if (context.mounted) Navigator.pop(context);
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Error creating user: ${e.toString()}')),
+                          );
+                        }
+                      }
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: navNavy),
+                  child: const Text('Add User', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          }
       ),
     );
   }
@@ -155,7 +165,8 @@ class _UsersPageState extends State<UsersPage> {
           totalUsers = docs.length;
           for (var doc in docs) {
             final data = doc.data() as Map<String, dynamic>;
-            if (data['role'] == 'Admin') adminCount++;
+            // FIXED: Changed metric validator from 'Administrator' to match your 'Admin' string dropdown selection
+            if (data['role'] == 'Admin' || data['role'] == 'Administrator') adminCount++;
             if (data['status'] == 'Active') activeCount++;
           }
         }
@@ -170,7 +181,7 @@ class _UsersPageState extends State<UsersPage> {
               Text("Manage and monitor all user accounts", style: TextStyle(color: Colors.grey.shade600, fontSize: 16)),
               const SizedBox(height: 36),
 
-              // Summary Cards
+              // Summary Cards Row
               Row(
                 children: [
                   Expanded(
@@ -180,13 +191,8 @@ class _UsersPageState extends State<UsersPage> {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: Colors.grey.shade300, width: 1),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black26,
-                            blurRadius: 32,
-                            offset: const Offset(0, 12),
-                            spreadRadius: 0,
-                          ),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, 8)),
                         ],
                       ),
                       child: Column(
@@ -194,10 +200,7 @@ class _UsersPageState extends State<UsersPage> {
                         children: [
                           Container(
                             padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE0F2FE),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
+                            decoration: BoxDecoration(color: const Color(0xFFE0F2FE), borderRadius: BorderRadius.circular(10)),
                             child: const Icon(Icons.people_outline, color: Color(0xFF0369A1), size: 32),
                           ),
                           const SizedBox(height: 24),
@@ -216,13 +219,8 @@ class _UsersPageState extends State<UsersPage> {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: Colors.grey.shade300, width: 1),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black26,
-                            blurRadius: 32,
-                            offset: const Offset(0, 12),
-                            spreadRadius: 0,
-                          ),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, 8)),
                         ],
                       ),
                       child: Column(
@@ -230,16 +228,13 @@ class _UsersPageState extends State<UsersPage> {
                         children: [
                           Container(
                             padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFEF3C7),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
+                            decoration: BoxDecoration(color: const Color(0xFFFEF3C7), borderRadius: BorderRadius.circular(10)),
                             child: const Icon(Icons.admin_panel_settings, color: Color(0xFFD97706), size: 32),
                           ),
                           const SizedBox(height: 24),
                           Text(adminCount.toString(), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 4),
-                          Text("Administration", style: TextStyle(color: Colors.grey.shade400, fontSize: 15)),
+                          Text("Administrator", style: TextStyle(color: Colors.grey.shade400, fontSize: 15)),
                         ],
                       ),
                     ),
@@ -252,13 +247,8 @@ class _UsersPageState extends State<UsersPage> {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: Colors.grey.shade300, width: 1),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black26,
-                            blurRadius: 32,
-                            offset: const Offset(0, 12),
-                            spreadRadius: 0,
-                          ),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, 8)),
                         ],
                       ),
                       child: Column(
@@ -266,10 +256,7 @@ class _UsersPageState extends State<UsersPage> {
                         children: [
                           Container(
                             padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFDCFCE7),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
+                            decoration: BoxDecoration(color: const Color(0xFFDCFCE7), borderRadius: BorderRadius.circular(10)),
                             child: const Icon(Icons.check_circle_outline, color: Color(0xFF16A34A), size: 32),
                           ),
                           const SizedBox(height: 24),
@@ -284,19 +271,14 @@ class _UsersPageState extends State<UsersPage> {
               ),
               const SizedBox(height: 36),
 
-              // Users Table
+              // Users Table Component Box
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: Colors.grey.shade300, width: 1),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black26,
-                      blurRadius: 32,
-                      offset: const Offset(0, 12),
-                      spreadRadius: 0,
-                    ),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, 8)),
                   ],
                 ),
                 child: Column(
@@ -314,7 +296,7 @@ class _UsersPageState extends State<UsersPage> {
                               borderRadius: BorderRadius.circular(12),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF4ADE80).withValues(alpha: 0.5),
+                                  color: const Color(0xFF4ADE80).withOpacity(0.4),
                                   blurRadius: 16,
                                   offset: const Offset(0, 6),
                                 ),
@@ -358,7 +340,7 @@ class _UsersPageState extends State<UsersPage> {
                     if (!snapshot.hasData)
                       const Padding(
                         padding: EdgeInsets.all(32),
-                        child: Center(child: CircularProgressIndicator()),
+                        child: Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(navNavy))),
                       )
                     else if (snapshot.data!.docs.isEmpty)
                       const Padding(
@@ -384,11 +366,21 @@ class _UsersPageState extends State<UsersPage> {
                             statusText = const Color(0xFFEF4444);
                           }
 
+                          // FIXED / TYPE-SAFE ASSIGNMENTS: Protects row fields from blowing up if Timestamp objects pass into text allocations
+                          String lastLoginString = '';
+                          dynamic rawLogin = data['lastLogin'];
+                          if (rawLogin is Timestamp) {
+                            DateTime dt = rawLogin.toDate();
+                            lastLoginString = "${dt.month.toString().padLeft(2,'0')}-${dt.day.toString().padLeft(2,'0')}-${dt.year}";
+                          } else {
+                            lastLoginString = rawLogin?.toString() ?? 'Never';
+                          }
+
                           return _buildUserRow(
-                            name: data['name'] ?? 'N/A',
+                            name: data['name'] ?? data['email']?.toString().split('@')[0] ?? 'N/A',
                             email: data['email'] ?? 'N/A',
                             role: data['role'] ?? 'Employee',
-                            lastLogin: data['lastLogin'] ?? 'Never',
+                            lastLogin: lastLoginString,
                             statusText: status,
                             statusColor: statusBg,
                             textColor: statusText,
@@ -407,7 +399,6 @@ class _UsersPageState extends State<UsersPage> {
     );
   }
 
-
   Widget _buildUserRow({
     required String name,
     required String email,
@@ -425,7 +416,7 @@ class _UsersPageState extends State<UsersPage> {
         children: [
           Expanded(
             flex: 3,
-            child: Text(name, style: const TextStyle(fontSize: 16, color: Colors.black)),
+            child: Text(name, style: const TextStyle(fontSize: 16, color: Colors.black, fontWeight: FontWeight.w500)),
           ),
           Expanded(flex: 3, child: Text(email, style: TextStyle(color: Colors.grey.shade600, fontSize: 15))),
           Expanded(flex: 2, child: Text(role, style: TextStyle(color: Colors.grey.shade600, fontSize: 15))),

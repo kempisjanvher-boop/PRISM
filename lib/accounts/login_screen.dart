@@ -40,8 +40,8 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // 1. Authenticate with Firebase Auth
-      UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+      UserCredential userCredential =
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
@@ -49,33 +49,91 @@ class _LoginScreenState extends State<LoginScreen> {
       if (userCredential.user != null) {
         String uniqueUserCode = "Guest";
         String uniqueUserSubCode = "000000";
-        String userRole = "User"; // Default fallback role
+        String userRole = "User";
 
-        // 2. Fetch profile from Firestore with hardened exception catching
+        final userId = userCredential.user!.uid;
+
+        // Try to fetch user profile rules from Firestore
         try {
           DocumentSnapshot userDoc = await FirebaseFirestore.instance
               .collection('users')
-              .doc(userCredential.user!.uid)
+              .doc(userId)
               .get();
 
           if (userDoc.exists && userDoc.data() != null) {
             final data = userDoc.data() as Map<String, dynamic>;
-            uniqueUserCode = data['userCode'] ?? uniqueUserCode;
-            uniqueUserSubCode = data['userSubCode'] ?? uniqueUserSubCode;
+
             userRole = data['role'] ?? userRole;
+
+            // Extract code configurations if they exist in the document data
+            uniqueUserCode = data['userCode'] ?? "";
+            uniqueUserSubCode = data['userSubCode'] ?? "";
           }
         } catch (firestoreError) {
           debugPrint("FIRESTORE ACCESS ERROR: $firestoreError");
-          // Rethrow to general handler or parse error directly here
-          throw Exception("Database Access Denied. Verify your Firestore Rules configuration.");
+          throw Exception(
+            "Database Access Denied. Verify your Firestore Rules configuration.",
+          );
+        }
+
+        try {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userCredential.user!.uid)
+              .update({
+            'lastLogin': FieldValue.serverTimestamp(),
+          });
+        } catch (e) {
+          debugPrint("Failed to update lastLogin: $e");
+        }
+
+        bool hasBadCode = uniqueUserCode.startsWith("67") || uniqueUserCode.isEmpty || uniqueUserCode == "Guest";
+        bool hasBadSubCode = uniqueUserSubCode == "000000" || uniqueUserSubCode.isEmpty;
+
+        if (hasBadCode || hasBadSubCode) {
+          int uniqueHashSeed = userId.hashCode.abs();
+          int dynamicId = 100000 + (uniqueHashSeed % 900000); // 6-digit dynamic number
+
+          if (hasBadCode) uniqueUserCode = dynamicId.toString();
+
+          if (hasBadSubCode) {
+            uniqueUserSubCode = (userRole == "Administrator" || userRole == "Admin")
+                ? "ADM-$uniqueUserCode"
+                : "USR-$uniqueUserCode";
+          }
+
+          // Automatically clean up and save the new format back to Firestore
+          try {
+            await FirebaseFirestore.instance.collection('users').doc(userId).update({
+              'userCode': uniqueUserCode,
+              'userSubCode': uniqueUserSubCode,
+            });
+          } catch (e) {
+            debugPrint("Failed to auto-clean user data in database: $e");
+          }
         }
 
         if (!mounted) return;
         setState(() => _isLoading = false);
 
-        // ==========================================
-        // DYNAMIC ROLE-BASED WORKSPACE ROUTING
-        // ==========================================
+        if (uniqueUserCode.isEmpty || uniqueUserCode == "Guest" || uniqueUserCode == "000000") {
+          int uniqueHashSeed = userId.hashCode.abs();
+
+          // Generates a clean, random-looking but permanent 6-digit number between 100000 and 999999
+          int dynamicId = 100000 + (uniqueHashSeed % 900000);
+
+          uniqueUserCode = dynamicId.toString();
+        }
+
+        if (uniqueUserSubCode.isEmpty || uniqueUserSubCode == "000000") {
+          if (userRole == "Administrator" || userRole == "Admin") {
+            uniqueUserSubCode = "ADM-$uniqueUserCode";
+          } else {
+            uniqueUserSubCode = "USR-$uniqueUserCode";
+          }
+        }
+
+        // 2. Perform the routing
         if (userRole == "Administrator" || userRole == "Admin") {
           Navigator.pushReplacement(
             context,
@@ -90,7 +148,7 @@ class _LoginScreenState extends State<LoginScreen> {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) => PrismMainDashboard(
+              builder: (context) => PrismDashboard(
                 userCode: uniqueUserCode,
                 userSubCode: uniqueUserSubCode,
               ),
@@ -99,13 +157,14 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       }
     } catch (e) {
-      // Catch both Auth issues and unexpected database permission blocks gracefully
       if (!mounted) return;
+
       setState(() {
         _isLoading = false;
       });
 
       String errorMessage = "An unexpected authentication error occurred.";
+
       if (e is FirebaseAuthException) {
         errorMessage = e.message ?? errorMessage;
       } else if (e is FirebaseException) {
@@ -117,12 +176,21 @@ class _LoginScreenState extends State<LoginScreen> {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: const Text("Sign In Failure"),
           content: Text(errorMessage),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("OK", style: TextStyle(color: brandBlue)),
+              child: const Text(
+                "OK",
+                style: TextStyle(
+                  color: brandBlue,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ],
         ),
@@ -132,9 +200,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+
     return Scaffold(
       body: Stack(
         children: [
+          // Background Image
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
@@ -143,10 +214,12 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
+
+          // Responsive Top Banner Line
           Positioned(
             top: 0, left: 0, right: 0,
             child: Container(
-              height: 25,
+              height: 12,
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.centerLeft,
@@ -156,26 +229,43 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
+
+          // Back Navigation Arrow - Optimized for tablet touch interactions
           Positioned(
-            top: 45, left: 20,
-            child: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 28),
-              onPressed: () => Navigator.pop(context),
+            top: 30,
+            left: isLandscape ? 32 : 16,
+            child: SafeArea(
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.black26,
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 24),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
             ),
           ),
+
+          // Centralized Form Box Viewport Container
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.symmetric(
+                    horizontal: isLandscape ? 48.0 : 24.0,
+                    vertical: 16.0
+                ),
                 child: Form(
                   key: _formKey,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const SizedBox(height: 20),
+                      SizedBox(height: isLandscape ? 10 : 30),
                       Image.asset(
                         'asset/MLA.png',
-                        height: 180,
+                        height: isLandscape ? 130 : 180,
                         fit: BoxFit.contain,
                       ),
                       const SizedBox(height: 16),
@@ -187,17 +277,19 @@ class _LoginScreenState extends State<LoginScreen> {
                           children: [
                             TextSpan(
                               text: "MLA.Digital",
-                              style: TextStyle(color: brandBlue, fontWeight: FontWeight.bold),
+                              style: TextStyle(color: Color(0xFF0F1B54), fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 36),
+                      const SizedBox(height: 28),
+
+                      // Login Card Framework Container
                       Container(
-                        width: 480,
-                        padding: const EdgeInsets.all(36),
+                        width: 460,
+                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 36),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.92),
+                          color: Colors.white.withValues(alpha: 0.94),
                           borderRadius: BorderRadius.circular(24),
                           boxShadow: const [
                             BoxShadow(color: Colors.black26, blurRadius: 20, offset: Offset(0, 8))
@@ -212,18 +304,19 @@ class _LoginScreenState extends State<LoginScreen> {
                                 color: Colors.white.withValues(alpha: 0.92),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: Image.asset('asset/login-prism.png'),
+                              child: Image.asset('asset/login-prism.png', height: 48, fit: BoxFit.contain),
                             ),
                             const SizedBox(height: 16),
                             const Text(
                               "Inventory System",
-                              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: brandBlue),
+                              style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: brandBlue),
                             ),
                             const Text(
                               "Sign in to your account",
-                              style: TextStyle(fontSize: 16, color: Colors.grey),
+                              style: TextStyle(fontSize: 15, color: Colors.grey),
                             ),
-                            const SizedBox(height: 32),
+                            const SizedBox(height: 28),
+
                             _buildTextField(
                               label: "Email Address",
                               controller: _emailController,
@@ -239,13 +332,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                 return null;
                               },
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 18),
                             _buildTextField(
                               label: "Password",
                               controller: _passwordController,
                               obscureText: _obscurePassword,
                               suffixIcon: IconButton(
-                                icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off, color: Colors.grey),
+                                icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off, color: Colors.grey, size: 22),
                                 onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                               ),
                               validator: (value) {
@@ -254,25 +347,27 @@ class _LoginScreenState extends State<LoginScreen> {
                                 return null;
                               },
                             ),
-                            const SizedBox(height: 36),
+                            const SizedBox(height: 32),
+
                             SizedBox(
                               width: double.infinity,
-                              height: 56,
+                              height: 54,
                               child: ElevatedButton(
                                 onPressed: _isLoading ? null : _handleLogin,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: brandBlue,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  elevation: 4,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  elevation: 2,
                                 ),
                                 child: _isLoading
                                     ? const SizedBox(
-                                  height: 24, width: 24,
+                                  height: 22, width: 22,
                                   child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
                                 )
                                     : const Text(
                                   "Sign In",
-                                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                                 ),
                               ),
                             ),
@@ -306,29 +401,37 @@ class _LoginScreenState extends State<LoginScreen> {
           padding: const EdgeInsets.only(left: 2, bottom: 6),
           child: Text(
             label,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
           ),
         ),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: const [
-              BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3))
-            ],
-          ),
-          child: TextFormField(
-            controller: controller,
-            obscureText: obscureText,
-            keyboardType: keyboardType,
-            validator: validator,
-            style: const TextStyle(fontSize: 16, color: Colors.black),
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              isDense: true,
-              suffixIcon: suffixIcon,
-              errorStyle: const TextStyle(height: 0.8, fontSize: 12),
+        TextFormField(
+          controller: controller,
+          obscureText: obscureText,
+          keyboardType: keyboardType,
+          validator: validator,
+          style: const TextStyle(fontSize: 15, color: Colors.black),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+            isDense: true,
+            suffixIcon: suffixIcon,
+            errorStyle: const TextStyle(height: 0.9, fontSize: 12),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: brandBlue, width: 1.5),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Colors.redAccent, width: 1),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Colors.red, width: 1.5),
             ),
           ),
         ),

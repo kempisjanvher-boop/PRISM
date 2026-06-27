@@ -20,11 +20,17 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
   static const Color navNavy = Color(0xFF0C245E);
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Track active shortcut mode: -1 = None, 0 = Scan Barcode, 1 = Manual Input
+  String _generateActivityDateString() {
+    final now = DateTime.now();
+    String month = now.month.toString().padLeft(2, '0');
+    String day = now.day.toString().padLeft(2, '0');
+    String year = now.year.toString();
+    return "$month-$day-$year";
+  }
+
   int _selectedShortcutIndex = -1;
   bool _isScannerAddingMode = true;
 
-  // Hardware Scanner listeners for the BL-W21
   final FocusNode _globalScannerFocusNode = FocusNode();
   String _scannedBufferContext = "";
 
@@ -41,7 +47,6 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
       _selectedStatusFilter = widget.initialStatusFilter!;
     }
 
-    // Listen to keystrokes in the search bar and update search queries instantly
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text.trim().toLowerCase();
@@ -57,13 +62,11 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
 
   @override
   void dispose() {
-    // Clean up controllers to prevent memory leak streams
     _searchController.dispose();
     _globalScannerFocusNode.dispose();
     super.dispose();
   }
 
-  // Interceptor processor handling BL-W21 fast-typing events
   void _handleHardwareScanInput(String barcodeRef, {required bool isAdding}) async {
     final querySnapshot = await _firestore
         .collection('master_list')
@@ -76,7 +79,6 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
 
       if (!mounted) return;
 
-      // Bypasses the viewfinder popups completely and opens the confirmed metadata window!
       _showScanConfirmationModal(
         isAdding: isAdding,
         scannedName: docData['name'] ?? 'Unknown Registered Item',
@@ -109,16 +111,10 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
     }
   }
 
-
-  // ==========================================
-  // STEP 2: VERIFICATION / CONFIRMATION MODAL
-  // ==========================================
   void _showScanActionConfirmationModal({required bool isAdding}) async {
     String mockBarcodeRef = "1234567890123";
-
-    // Default fallback check values inside relational constraint layers
     String matchedName = "Package01";
-    String matchedCategory = "ABC";
+    String matchedCategory = "Tools";
     int currentQty = 0;
     int minLimit = 10;
 
@@ -128,7 +124,6 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
         .limit(1)
         .get();
 
-    // STRICT REJECTION LAYER: Block execution if item profiles do not live inside Master inventory profiles
     if (querySnapshot.docs.isEmpty) {
       if (!mounted) return;
       showDialog(
@@ -165,165 +160,171 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
       barrierDismissible: true,
       builder: (context) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Container(
-          width: 650,
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    isAdding ? "Add New Item" : "Ship Item Details",
-                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close, size: 28, color: Colors.black87),
-                  )
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              _buildModalLabel("Item Name *"),
-              const SizedBox(height: 8),
-              _buildModalTextField(controller: nameController, hint: ""),
-              const SizedBox(height: 20),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildModalLabel("Reference Number *"),
-                        const SizedBox(height: 8),
-                        _buildModalTextField(controller: refController, hint: ""),
-                      ],
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 580),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        isAdding ? "Add New Item" : "Ship Item Details",
+                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 24),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildModalLabel("Category*"),
-                        const SizedBox(height: 8),
-                        _buildModalTextField(controller: categoryController, hint: ""),
-                      ],
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close, size: 24, color: Colors.black87),
+                    )
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                _buildModalLabel("Item Name *"),
+                const SizedBox(height: 6),
+                _buildModalTextField(controller: nameController, hint: ""),
+                const SizedBox(height: 14),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildModalLabel("Reference Number *"),
+                          const SizedBox(height: 6),
+                          _buildModalTextField(controller: refController, hint: ""),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildModalLabel(isAdding ? "Quantity *" : "Quantity Shipped *"),
-                        const SizedBox(height: 8),
-                        _buildModalTextField(controller: qtyController, hint: "", isNumeric: true),
-                      ],
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildModalLabel("Category*"),
+                          const SizedBox(height: 6),
+                          _buildModalTextField(controller: categoryController, hint: ""),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 24),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildModalLabel("Min Quantity *"),
-                        const SizedBox(height: 8),
-                        _buildModalTextField(controller: minQtyController, hint: "", isNumeric: true),
-                      ],
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildModalLabel(isAdding ? "Quantity *" : "Quantity Shipped *"),
+                          const SizedBox(height: 6),
+                          _buildModalTextField(controller: qtyController, hint: "", isNumeric: true),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 36),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: Colors.grey.shade300),
-                      padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 18),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildModalLabel("Min Quantity *"),
+                          const SizedBox(height: 6),
+                          _buildModalTextField(controller: minQtyController, hint: "", isNumeric: true),
+                        ],
+                      ),
                     ),
-                    child: Text("Cancel", style: TextStyle(color: Colors.grey.shade600, fontSize: 16, fontWeight: FontWeight.bold)),
-                  ),
+                  ],
+                ),
+                const SizedBox(height: 28),
 
-                  ElevatedButton(
-                    onPressed: () async {
-                      final String finalName = nameController.text.trim();
-                      final String finalRef = refController.text.trim();
-                      final String finalCat = categoryController.text.trim();
-                      final int targetDelta = int.tryParse(qtyController.text.trim()) ?? 0;
-                      final int targetMin = int.tryParse(minQtyController.text.trim()) ?? 10;
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: Colors.grey.shade300),
+                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: Text("Cancel", style: TextStyle(color: Colors.grey.shade600, fontSize: 14, fontWeight: FontWeight.bold)),
+                    ),
 
-                      if (finalName.isNotEmpty && finalRef.isNotEmpty) {
-                        final matchQuery = await _firestore
-                            .collection('master_list')
-                            .where('refNum', isEqualTo: finalRef)
-                            .limit(1)
-                            .get();
+                    ElevatedButton(
+                      onPressed: () async {
+                        final String finalName = nameController.text.trim();
+                        final String finalRef = refController.text.trim();
+                        final String finalCat = categoryController.text.trim();
+                        final int targetDelta = int.tryParse(qtyController.text.trim()) ?? 0;
+                        final int targetMin = int.tryParse(minQtyController.text.trim()) ?? 10;
 
-                        if (matchQuery.docs.isNotEmpty) {
-                          final docId = matchQuery.docs.first.id;
-                          final baseQty = matchQuery.docs.first['quantity'] ?? 0;
-                          int updatedTotal = isAdding ? (baseQty + targetDelta) : (baseQty - targetDelta);
-                          if (updatedTotal < 0) updatedTotal = 0;
+                        if (finalName.isNotEmpty && finalRef.isNotEmpty) {
+                          final matchQuery = await _firestore
+                              .collection('master_list')
+                              .where('refNum', isEqualTo: finalRef)
+                              .limit(1)
+                              .get();
 
-                          String statusStr = "In stock";
-                          if (updatedTotal == 0) {
-                            statusStr = "Out of Stock";
-                          } else if (updatedTotal < targetMin) statusStr = "Low Stock";
+                          if (matchQuery.docs.isNotEmpty) {
+                            final docId = matchQuery.docs.first.id;
+                            final baseQty = matchQuery.docs.first['quantity'] ?? 0;
+                            int updatedTotal = isAdding ? (baseQty + targetDelta) : (baseQty - targetDelta);
+                            if (updatedTotal < 0) updatedTotal = 0;
 
-                          await _firestore.collection('master_list').doc(docId).update({
-                            'name': finalName,
-                            'category': finalCat,
-                            'quantity': updatedTotal,
-                            'minLimit': 'Min: $targetMin',
-                            'status': statusStr,
-                            'isIncrement': isAdding,
-                          });
+                            String statusStr = "In stock";
+                            if (updatedTotal == 0) {
+                              statusStr = "Out of Stock";
+                            } else if (updatedTotal < targetMin) statusStr = "Low Stock";
 
-                          // Fix Block 1: Evaluate polarity using the active state parameter flag
-                          await _firestore.collection('activities').add({
-                            'itemName': finalName,
-                            'refNumber': finalRef,
-                            'qty': isAdding ? targetDelta.abs() : -targetDelta.abs(),
-                            'status': isAdding ? 'added' : 'shipped',
-                            'timestamp': FieldValue.serverTimestamp(),
-                            'dateString': "06-23-2026",
-                            'createdBy': widget.userCode,
-                          });
+                            await _firestore.collection('master_list').doc(docId).update({
+                              'name': finalName,
+                              'category': finalCat,
+                              'quantity': updatedTotal,
+                              'minLimit': 'Min: $targetMin',
+                              'status': statusStr,
+                              'isIncrement': isAdding,
+                            });
+
+                            await _firestore.collection('activities').add({
+                              'itemName': finalName,
+                              'refNumber': finalRef,
+                              'qty': isAdding ? targetDelta.abs() : -targetDelta.abs(),
+                              'status': isAdding ? 'added' : 'shipped',
+                              'timestamp': FieldValue.serverTimestamp(),
+                              'dateString': _generateActivityDateString(),
+                              'createdBy': widget.userCode,
+                            });
+                          }
+
+                          if (context.mounted) Navigator.pop(context);
                         }
-
-                        if (context.mounted) Navigator.pop(context);
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isAdding ? navNavy : const Color(0xFFEF4444),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 18),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      elevation: 2,
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isAdding ? navNavy : const Color(0xFFEF4444),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                        minimumSize: const Size(140, 48),
+                        maximumSize: const Size(200, 48),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        elevation: 2,
+                      ),
+                      child: Text(
+                        isAdding ? "Add Item" : "Ship Item",
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                      ),
                     ),
-                    child: Text(
-                      isAdding ? "Add Item" : "Ship Item",
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -348,177 +349,181 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
       barrierDismissible: false,
       builder: (context) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Container(
-          width: 650,
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "Confirm Scanned Item",
-                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close, size: 28),
-                  )
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                "Verify if the scanned product metadata below matches your physical package.",
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 24),
-
-              _buildModalLabel("Item Name"),
-              const SizedBox(height: 8),
-              _buildModalTextField(controller: nameController, hint: "", isReadOnly: true),
-              const SizedBox(height: 20),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildModalLabel("Reference Number"),
-                        const SizedBox(height: 8),
-                        _buildModalTextField(controller: refController, hint: "", isReadOnly: true),
-                      ],
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 580),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        "Confirm Scanned Item",
+                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 24),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildModalLabel("Category"),
-                        const SizedBox(height: 8),
-                        _buildModalTextField(controller: categoryController, hint: "", isReadOnly: true),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close, size: 24),
+                    )
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  "Verify if the scanned product metadata below matches your physical package.",
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade100),
+                ),
+                const SizedBox(height: 16),
 
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildModalLabel(isAdding ? "Quantity to Add *" : "Quantity to Ship *"),
-                        const SizedBox(height: 8),
-                        _buildModalTextField(controller: qtyChangeController, hint: "", isNumeric: true),
-                      ],
+                _buildModalLabel("Item Name"),
+                const SizedBox(height: 6),
+                _buildModalTextField(controller: nameController, hint: "", isReadOnly: true),
+                const SizedBox(height: 14),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildModalLabel("Reference Number"),
+                          const SizedBox(height: 6),
+                          _buildModalTextField(controller: refController, hint: "", isReadOnly: true),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 24),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildModalLabel("Current System Stock"),
-                        const SizedBox(height: 8),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.grey.shade300),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildModalLabel("Category"),
+                          const SizedBox(height: 6),
+                          _buildModalTextField(controller: categoryController, hint: "", isReadOnly: true),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildModalLabel(isAdding ? "Quantity to Add *" : "Quantity to Ship *"),
+                          const SizedBox(height: 6),
+                          _buildModalTextField(controller: qtyChangeController, hint: "", isNumeric: true),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildModalLabel("Current System Stock"),
+                          const SizedBox(height: 6),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: Text(
+                              "$currentQty units",
+                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey.shade700, fontSize: 14),
+                            ),
                           ),
-                          child: Text(
-                            "$currentQty units available",
-                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey.shade700, fontSize: 16),
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 36),
+                  ],
+                ),
+                const SizedBox(height: 28),
 
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: Colors.grey.shade300),
-                      padding: const EdgeInsets.symmetric(horizontal: 44, vertical: 18),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: Colors.grey.shade300),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: Text("Incorrect / Rescan", style: TextStyle(color: Colors.grey.shade600, fontSize: 14, fontWeight: FontWeight.bold)),
                     ),
-                    child: Text("Incorrect / Rescan", style: TextStyle(color: Colors.grey.shade600, fontSize: 16, fontWeight: FontWeight.bold)),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      final int deltaQty = int.tryParse(qtyChangeController.text.trim()) ?? 1;
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        final int deltaQty = int.tryParse(qtyChangeController.text.trim()) ?? 1;
 
-                      final querySnapshot = await _firestore
-                          .collection('master_list')
-                          .where('refNum', isEqualTo: scannedRef)
-                          .limit(1)
-                          .get();
+                        final querySnapshot = await _firestore
+                            .collection('master_list')
+                            .where('refNum', isEqualTo: scannedRef)
+                            .limit(1)
+                            .get();
 
-                      if (querySnapshot.docs.isNotEmpty) {
-                        final docId = querySnapshot.docs.first.id;
-                        int newQty = isAdding ? (currentQty + deltaQty) : (currentQty - deltaQty);
-                        if (newQty < 0) newQty = 0;
+                        if (querySnapshot.docs.isNotEmpty) {
+                          final docId = querySnapshot.docs.first.id;
+                          int newQty = isAdding ? (currentQty + deltaQty) : (currentQty - deltaQty);
+                          if (newQty < 0) newQty = 0;
 
-                        String status = "In stock";
-                        if (newQty == 0) {
-                          status = "Out of Stock";
-                        } else if (newQty < minLimit) status = "Low Stock";
+                          String status = "In stock";
+                          if (newQty == 0) {
+                            status = "Out of Stock";
+                          } else if (newQty < minLimit) status = "Low Stock";
 
-                        await _firestore.collection('master_list').doc(docId).update({
-                          'quantity': newQty,
-                          'status': status,
-                          'isIncrement': isAdding,
-                        });
+                          await _firestore.collection('master_list').doc(docId).update({
+                            'quantity': newQty,
+                            'status': status,
+                            'isIncrement': isAdding,
+                          });
 
-                        // Fix Block 2: Evaluate polarity using the active scanner state parameter flag
-                        await _firestore.collection('activities').add({
-                          'itemName': scannedName,
-                          'refNumber': scannedRef,
-                          'qty': isAdding ? deltaQty.abs() : -deltaQty.abs(),
-                          'status': isAdding ? 'added' : 'shipped',
-                          'timestamp': FieldValue.serverTimestamp(),
-                          'dateString': "06-23-2026",
-                          'createdBy': widget.userCode,
-                        });
-                      }
+                          await _firestore.collection('activities').add({
+                            'itemName': scannedName,
+                            'refNumber': scannedRef,
+                            'qty': isAdding ? deltaQty.abs() : -deltaQty.abs(),
+                            'status': isAdding ? 'added' : 'shipped',
+                            'timestamp': FieldValue.serverTimestamp(),
+                            'dateString': _generateActivityDateString(),
+                            'createdBy': widget.userCode,
+                          });
+                        }
 
-                      if (context.mounted) Navigator.pop(context);
-                    },
-                    icon: const Icon(Icons.check_circle_outline, size: 20),
-                    label: const Text("Confirm", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isAdding ? navNavy : const Color(0xFFEF4444),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 44, vertical: 18),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        if (context.mounted) Navigator.pop(context);
+                      },
+                      icon: const Icon(Icons.check_circle_outline, size: 18),
+                      label: const Text("Confirm", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isAdding ? navNavy : const Color(0xFFEF4444),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                        minimumSize: const Size(140, 48),
+                        maximumSize: const Size(200, 48),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        elevation: 2,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  // ==========================================
-  // ORIGINAL MANUAL INPUT MODAL CONTAINER
-  // ==========================================
   void _showManualInputModal({required bool isAdding}) {
     final nameController = TextEditingController();
     final refController = TextEditingController();
@@ -531,185 +536,273 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
       barrierDismissible: true,
       builder: (context) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Container(
-          width: 650,
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text("Manual Input", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black)),
-                  IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close, size: 28))
-                ],
-              ),
-              const SizedBox(height: 24),
-              _buildModalLabel("Item Name *"),
-              const SizedBox(height: 8),
-              _buildModalTextField(controller: nameController, hint: ""),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 580),
+          child: StreamBuilder<QuerySnapshot>(
+            stream: _firestore.collection('master_list').snapshots(),
+            builder: (context, snapshot) {
+              List<Map<String, dynamic>> masterPool = [];
+              if (snapshot.hasData) {
+                masterPool = snapshot.data!.docs.map((doc) {
+                  final d = doc.data() as Map<String, dynamic>;
+                  return {
+                    'name': d['name'] ?? '',
+                    'refNum': d['refNum'] ?? '',
+                    'category': d['category'] ?? '',
+                    'minLimit': d['minLimit'] ?? 'Min: 10',
+                    'quantity': d['quantity'] ?? 0,
+                  };
+                }).toList();
+              }
+
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _buildModalLabel("Reference Number *"),
-                        const SizedBox(height: 8),
-                        _buildModalTextField(controller: refController, hint: ""),
+                        Text(
+                          isAdding ? "Manual Input (Add)" : "Manual Input (Ship)",
+                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close, size: 24),
+                        ),
                       ],
                     ),
-                  ),
-                  const SizedBox(width: 24),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildModalLabel("Category *"),
-                        const SizedBox(height: 8),
-                        _buildModalTextField(controller: categoryController, hint: ""),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildModalLabel("Quantity *"),
-                        const SizedBox(height: 8),
-                        _buildModalTextField(controller: qtyController, hint: "", isNumeric: true),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 24),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildModalLabel("Min Quantity *"),
-                        const SizedBox(height: 8),
-                        _buildModalTextField(controller: minQtyController, hint: "", isNumeric: true),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 36),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: Colors.grey.shade300),
-                      padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 18),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                    child: Text("Cancel", style: TextStyle(color: Colors.grey.shade600, fontSize: 16, fontWeight: FontWeight.bold)),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      final String name = nameController.text.trim();
-                      final String ref = refController.text.trim();
-                      final int qty = int.tryParse(qtyController.text.trim()) ?? 0;
-                      final int minQty = int.tryParse(minQtyController.text.trim()) ?? 10;
+                    const SizedBox(height: 16),
 
-                      if (name.isNotEmpty && ref.isNotEmpty && qty >= 0) {
-                        final querySnapshot = await _firestore
-                            .collection('master_list')
-                            .where('refNum', isEqualTo: ref)
-                            .limit(1)
-                            .get();
+                    _buildModalLabel("Reference Number"),
+                    const SizedBox(height: 6),
 
-                        // MASTER RELATIONAL LIST COMPLIANCE CHECK
-                        if (querySnapshot.docs.isNotEmpty) {
-                          final docId = querySnapshot.docs.first.id;
-                          final currentQty = querySnapshot.docs.first['quantity'] ?? 0;
-                          int newQty = isAdding ? (currentQty + qty) : (currentQty - qty);
-                          if (newQty < 0) newQty = 0;
-
-                          String status = "In stock";
-                          if (newQty == 0) {
-                            status = "Out of Stock";
-                          } else if (newQty < minQty) status = "Low Stock";
-
-                          await _firestore.collection('master_list').doc(docId).update({
-                            'quantity': newQty,
-                            'status': status,
-                            'isIncrement': isAdding,
-                          });
-
-                          // Fix Block 3: Evaluate polarity using the active user state parameter flag
-                          await _firestore.collection('activities').add({
-                            'itemName': querySnapshot.docs.first['name'] ?? name,
-                            'refNumber': ref,
-                            'qty': isAdding ? qty.abs() : -qty.abs(),
-                            'status': isAdding ? 'added' : 'shipped',
-                            'timestamp': FieldValue.serverTimestamp(),
-                            'dateString': "06-23-2026",
-                            'createdBy': widget.userCode,
-                          });
-
-                          if (context.mounted) Navigator.pop(context);
-                        } else {
-                          // Trigger strict rejection dialog banner info
-                          if (context.mounted) {
-                            showDialog(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                title: const Row(
-                                  children: [
-                                    Icon(Icons.warning_amber_rounded, color: Colors.orange),
-                                    SizedBox(width: 8),
-                                    Text("Unregistered Item"),
-                                  ],
-                                ),
-                                content: Text("The reference number '$ref' does not exist in the master record list profiles. Please add the profile inside the master spreadsheet first."),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    child: const Text("OK", style: TextStyle(color: navNavy)),
-                                  )
-                                ],
-                              ),
-                            );
-                          }
+                    RawAutocomplete<Map<String, dynamic>>(
+                      displayStringForOption: (option) => option['refNum'],
+                      optionsBuilder: (TextEditingValue textEditingValue) {
+                        if (textEditingValue.text.isEmpty) {
+                          return const Iterable<Map<String, dynamic>>.empty();
                         }
-                      }
-                    },
-                    icon: Icon(isAdding ? Icons.add : Icons.remove, size: 20),
-                    label: Text(isAdding ? "Add Item" : "Ship Item", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isAdding ? navNavy : const Color(0xFFEF4444),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 18),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        return masterPool.where((option) {
+                          final query = textEditingValue.text.toLowerCase();
+                          return option['refNum'].toLowerCase().contains(query) ||
+                              option['name'].toLowerCase().contains(query);
+                        });
+                      },
+                      optionsViewBuilder: (context, onSelected, options) {
+                        return Align(
+                          alignment: Alignment.topLeft,
+                          child: Material(
+                            elevation: 4.0,
+                            color: Colors.white, // FIX: Define surface color here so ink layers can render
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              width: 320,
+                              constraints: const BoxConstraints(maxHeight: 200),
+                              decoration: BoxDecoration(
+                                // FIX: Removed 'color: Colors.white' from here
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.grey.shade300),
+                              ),
+                              child: ListView.builder(
+                                padding: EdgeInsets.zero,
+                                shrinkWrap: true,
+                                itemCount: options.length,
+                                itemBuilder: (context, index) {
+                                  final option = options.elementAt(index);
+                                  return ListTile(
+                                    title: Text(option['refNum'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    subtitle: Text("${option['name']} (${option['category']})"),
+                                    onTap: () => onSelected(option),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                      fieldViewBuilder: (context, textController, focusNode, onFieldSubmitted) {
+                        textController.addListener(() {
+                          refController.text = textController.text;
+                        });
+                        return TextFormField(
+                          controller: textController,
+                          focusNode: focusNode,
+                          decoration: InputDecoration(
+                            hintText: "Type reference code or item name...",
+                            filled: true,
+                            fillColor: Colors.white,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                            suffixIcon: const Icon(Icons.search, size: 20),
+                          ),
+                        );
+                      },
+                      onSelected: (option) {
+                        refController.text = option['refNum'];
+                        nameController.text = option['name'];
+                        categoryController.text = option['category'];
+
+                        String rawMin = option['minLimit'] ?? "10";
+                        minQtyController.text = rawMin.replaceAll(RegExp(r'[^0-9]'), '');
+                      },
                     ),
-                  ),
-                ],
-              ),
-            ],
+                    const SizedBox(height: 14),
+
+                    _buildModalLabel("Item Name *"),
+                    const SizedBox(height: 6),
+                    _buildModalTextField(controller: nameController, hint: "Auto-populated name"),
+                    const SizedBox(height: 14),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildModalLabel("Category *"),
+                              const SizedBox(height: 6),
+                              _buildModalTextField(controller: categoryController, hint: "Auto-populated category"),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildModalLabel("Quantity *"),
+                              const SizedBox(height: 6),
+                              _buildModalTextField(controller: qtyController, hint: "0", isNumeric: true),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildModalLabel("Min Quantity *"),
+                              const SizedBox(height: 6),
+                              _buildModalTextField(controller: minQtyController, hint: "10", isNumeric: true),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 28),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        OutlinedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: Colors.grey.shade300),
+                            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: Text("Cancel", style: TextStyle(color: Colors.grey.shade600, fontSize: 14, fontWeight: FontWeight.bold)),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            final String name = nameController.text.trim();
+                            final String ref = refController.text.trim();
+                            final int qty = int.tryParse(qtyController.text.trim()) ?? 0;
+                            final int minQty = int.tryParse(minQtyController.text.trim()) ?? 10;
+
+                            if (name.isNotEmpty && ref.isNotEmpty && qty >= 0) {
+                              final querySnapshot = await _firestore
+                                  .collection('master_list')
+                                  .where('refNum', isEqualTo: ref)
+                                  .limit(1)
+                                  .get();
+
+                              if (querySnapshot.docs.isNotEmpty) {
+                                final docId = querySnapshot.docs.first.id;
+                                final currentQty = querySnapshot.docs.first['quantity'] ?? 0;
+                                int newQty = isAdding ? (currentQty + qty) : (currentQty - qty);
+                                if (newQty < 0) newQty = 0;
+
+                                String status = "In stock";
+                                if (newQty == 0) {
+                                  status = "Out of Stock";
+                                } else if (newQty < minQty) status = "Low Stock";
+
+                                await _firestore.collection('master_list').doc(docId).update({
+                                  'quantity': newQty,
+                                  'status': status,
+                                  'isIncrement': isAdding,
+                                });
+
+                                await _firestore.collection('activities').add({
+                                  'itemName': querySnapshot.docs.first['name'] ?? name,
+                                  'refNumber': ref,
+                                  'qty': isAdding ? qty.abs() : -qty.abs(),
+                                  'status': isAdding ? 'added' : 'shipped',
+                                  'timestamp': FieldValue.serverTimestamp(),
+                                  'dateString': _generateActivityDateString(),
+                                  'createdBy': widget.userCode,
+                                });
+
+                                if (context.mounted) Navigator.pop(context);
+                              } else {
+                                if (context.mounted) {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Row(
+                                        children: [
+                                          Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                                          SizedBox(width: 8),
+                                          Text("Unregistered Item"),
+                                        ],
+                                      ),
+                                      content: Text("The reference number '$ref' does not exist in the master record list profiles. Please add the profile inside the master spreadsheet first."),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(context),
+                                          child: const Text("OK", style: TextStyle(color: navNavy)),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }
+                              }
+                            }
+                          },
+                          icon: Icon(isAdding ? Icons.add : Icons.remove, size: 18),
+                          label: Text(isAdding ? "Add Item" : "Ship Item", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isAdding ? navNavy : const Color(0xFFEF4444),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ),
       ),
     );
   }
 
-// Routing gateway logic separating execution profiles based on panel states
   void _handleInventoryActionDispatch({required bool isAdding}) {
     setState(() {
       _isScannerAddingMode = isAdding;
     });
 
     if (_selectedShortcutIndex == 0) {
-      // Notify the user the system is armed and waiting for a physical hardware scan
       ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -719,7 +812,7 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
               const SizedBox(width: 12),
               Text(
                 isAdding ? "System Ready: Scan item barcode to ADD to stock" : "System Ready: Scan item barcode to SHIP/SUBTRACT from stock",
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               ),
             ],
           ),
@@ -728,7 +821,6 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
         ),
       );
     } else {
-      // If not in scanner mode, open standard manual modal layout sheet template
       _showManualInputModal(isAdding: isAdding);
     }
   }
@@ -737,9 +829,9 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
     return Text(
       label,
       style: TextStyle(
-        fontSize: 15,
+        fontSize: 14,
         fontWeight: FontWeight.w500,
-        color: Colors.grey.shade500,
+        color: Colors.grey.shade600,
       ),
     );
   }
@@ -749,6 +841,7 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
     required String hint,
     bool isNumeric = false,
     bool isReadOnly = false,
+    Widget? suffixIcon,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -756,15 +849,17 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade300),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
       child: TextField(
         controller: controller,
         readOnly: isReadOnly,
         keyboardType: isNumeric ? TextInputType.number : TextInputType.text,
-        style: TextStyle(color: isReadOnly ? Colors.grey.shade700 : Colors.black),
+        style: TextStyle(color: isReadOnly ? Colors.grey.shade700 : Colors.black, fontSize: 14),
         decoration: InputDecoration(
           border: InputBorder.none,
           hintText: hint,
+          isDense: true,
+          suffixIcon: suffixIcon,
         ),
       ),
     );
@@ -801,32 +896,32 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
         },
         child: Container(
           color: const Color(0xFFF3F4F6),
-          padding: const EdgeInsets.all(40.0),
+          padding: const EdgeInsets.all(20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("Track your packages", style: TextStyle(fontSize: 34, fontWeight: FontWeight.bold, color: Colors.black)),
-              const SizedBox(height: 6),
-              Text("Manage your packages here", style: TextStyle(color: Colors.grey.shade600, fontSize: 16)),
-              const SizedBox(height: 28),
+              const Text("Track your packages", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black)),
+              const SizedBox(height: 4),
+              Text("Manage your packages here", style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
+              const SizedBox(height: 20),
 
               Row(
                 children: [
                   _buildShortcutCard(
                     index: 0,
                     title: "SCAN BARCODE",
-                    subtitle: "Automatically log your packages",
+                    subtitle: "Log automatically",
                     icon: Icons.qr_code_scanner_outlined,
                     activeBgColor: const Color(0xFFE8F5E9),
                     activeBorderColor: const Color(0xFFA5D6A7),
                     activeIconColor: const Color(0xFF2E7D32),
                     onTap: () {},
                   ),
-                  const SizedBox(width: 24),
+                  const SizedBox(width: 16),
                   _buildShortcutCard(
                     index: 1,
                     title: "MANUAL INPUT",
-                    subtitle: "Manually encode your packages",
+                    subtitle: "Encode manually",
                     icon: Icons.edit_note_outlined,
                     activeBgColor: const Color(0xFFFEF3C7),
                     activeBorderColor: const Color(0xFFFDE68A),
@@ -835,30 +930,33 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 48),
+              const SizedBox(height: 28),
 
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text("Inventory Management", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black)),
+                      const Text("Inventory Management", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black)),
                       const SizedBox(height: 4),
-                      Text("Manage your inventory items", style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
+                      Text("Manage your inventory items", style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
                     ],
                   ),
+
+                  const Spacer(),
+
                   Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      // 1. DYNAMIC ADD ITEM BUTTON
                       ElevatedButton.icon(
                         onPressed: () => _handleInventoryActionDispatch(isAdding: true),
                         icon: Icon(
                           Icons.add,
-                          size: 20,
+                          size: 18,
                           color: (_selectedShortcutIndex == 0 && _isScannerAddingMode) ? Colors.white : const Color(0xFF2E7D32),
                         ),
-                        label: const Text("Add Item", style: TextStyle(fontWeight: FontWeight.bold)),
+                        label: const Text("Add Item", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: (_selectedShortcutIndex == 0 && _isScannerAddingMode)
                               ? const Color(0xFF2E7D32)
@@ -870,22 +968,20 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
                             color: (_selectedShortcutIndex == 0 && _isScannerAddingMode) ? Colors.transparent : const Color(0xFF2E7D32),
                             width: 1.5,
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           elevation: (_selectedShortcutIndex == 0 && _isScannerAddingMode) ? 2 : 0,
                         ),
                       ),
-                      const SizedBox(width: 16),
-
-                      // 2. DYNAMIC SHIPPED ITEM BUTTON
+                      const SizedBox(width: 12),
                       ElevatedButton.icon(
                         onPressed: () => _handleInventoryActionDispatch(isAdding: false),
                         icon: Icon(
                           Icons.remove,
-                          size: 20,
+                          size: 18,
                           color: (_selectedShortcutIndex == 0 && !_isScannerAddingMode) ? Colors.white : const Color(0xFFEF4444),
                         ),
-                        label: const Text("Shipped Item", style: TextStyle(fontWeight: FontWeight.bold)),
+                        label: const Text("Shipped Item", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: (_selectedShortcutIndex == 0 && !_isScannerAddingMode)
                               ? const Color(0xFFEF4444)
@@ -897,7 +993,7 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
                             color: (_selectedShortcutIndex == 0 && !_isScannerAddingMode) ? Colors.transparent : const Color(0xFFEF4444),
                             width: 1.5,
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           elevation: (_selectedShortcutIndex == 0 && !_isScannerAddingMode) ? 2 : 0,
                         ),
@@ -906,40 +1002,41 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
-              // --- INTERACTIVE SEARCH AND DROP-DOWN ROW ---
               Row(
                 children: [
                   Expanded(
                     flex: 2,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
                       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade300)),
                       child: TextField(
                         controller: _searchController,
+                        style: const TextStyle(fontSize: 14),
                         decoration: InputDecoration(
-                          icon: Icon(Icons.search, color: Colors.grey.shade500),
-                          hintText: "Search by name or reference number",
-                          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 15),
+                          icon: Icon(Icons.search, color: Colors.grey.shade500, size: 20),
+                          hintText: "Search name / ref number",
+                          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
                           border: InputBorder.none,
+                          isDense: true,
                           suffixIcon: _searchController.text.isNotEmpty
-                              ? IconButton(icon: const Icon(Icons.clear, size: 18), onPressed: () => _searchController.clear())
+                              ? IconButton(icon: const Icon(Icons.clear, size: 16), onPressed: () => _searchController.clear())
                               : null,
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: _buildRealDropdownFilter(
                       prefixIcon: Icons.filter_alt_outlined,
                       currentValue: _selectedCategoryFilter,
-                      items: ["All Categories", "Office Supplies", "Electronics", "Accessories", "General", "ABC"],
+                      items: ["All Categories", "Office Supplies", "Electrical", "Accessories", "Tools"],
                       onChanged: (val) => setState(() => _selectedCategoryFilter = val!),
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: _buildRealDropdownFilter(
                       prefixIcon: Icons.playlist_add_check,
@@ -950,7 +1047,7 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
               Expanded(
                 child: Container(
@@ -961,15 +1058,15 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
                       children: [
                         Container(
                           color: const Color(0xFFEFEFF4),
-                          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
+                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                           child: Row(
                             children: const [
-                              Expanded(flex: 3, child: Text("Item", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
-                              Expanded(flex: 2, child: Text("Ref Num", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
-                              Expanded(flex: 2, child: Text("Category", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
-                              Expanded(flex: 2, child: Text("Quantity", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
-                              Expanded(flex: 2, child: Text("Status", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
-                              SizedBox(width: 40),
+                              Expanded(flex: 3, child: Text("Item", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
+                              Expanded(flex: 2, child: Text("Ref Num", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
+                              Expanded(flex: 2, child: Text("Category", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
+                              Expanded(flex: 2, child: Text("Quantity", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
+                              Expanded(flex: 2, child: Text("Status", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
+                              SizedBox(width: 32),
                             ],
                           ),
                         ),
@@ -980,10 +1077,9 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
                               if (snapshot.hasError) return const Center(child: Text("Error fetching records"));
                               if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
                               if (snapshot.data!.docs.isEmpty) {
-                                return const Center(child: Text("No items currently tracked in inventory system database setup."));
+                                return const Center(child: Text("No items currently tracked in database."));
                               }
 
-                              // --- IN-MEMORY SEARCH & METRIC FILTER ENGINE ---
                               final filteredDocs = snapshot.data!.docs.where((doc) {
                                 final Object? rawData = doc.data();
                                 if (rawData == null || rawData is! Map<String, dynamic>) return false;
@@ -993,7 +1089,6 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
                                 final String refNum = (data['refNum'] ?? '').toString().toLowerCase();
                                 final String category = (data['category'] ?? 'General').toString();
 
-                                // Dynamic status checking logic for filter queries
                                 final int qty = data['quantity'] ?? 0;
                                 final String rawMin = data['minLimit'] ?? 'Min: 10';
                                 final int minLimit = int.tryParse(rawMin.replaceAll(RegExp(r'[^0-9]'), '')) ?? 10;
@@ -1027,7 +1122,6 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
                                   }
                                   final Map<String, dynamic> data = rawData;
 
-                                  // --- RECALCULATE STOCK STATES ON THE FLY ---
                                   final int liveQty = data['quantity'] ?? 0;
                                   final String rawMinLimit = data['minLimit'] ?? 'Min: 10';
                                   final int parsedMinLimit = int.tryParse(rawMinLimit.replaceAll(RegExp(r'[^0-9]'), '')) ?? 10;
@@ -1096,7 +1190,7 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
         },
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: isSelected ? activeBgColor : Colors.white,
             borderRadius: BorderRadius.circular(12),
@@ -1105,18 +1199,21 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, border: Border.all(color: Colors.grey.shade100)),
-                child: Icon(icon, color: isSelected ? activeIconColor : Colors.grey.shade500, size: 30),
+                child: Icon(icon, color: isSelected ? activeIconColor : Colors.grey.shade500, size: 24),
               ),
-              const SizedBox(width: 18),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black)),
-                  const SizedBox(height: 4),
-                  Text(subtitle, style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
-                ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black)),
+                    const SizedBox(height: 2),
+                    Text(subtitle, style: TextStyle(color: Colors.grey.shade600, fontSize: 12), overflow: TextOverflow.ellipsis),
+                  ],
+                ),
               )
             ],
           ),
@@ -1125,7 +1222,6 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
     );
   }
 
-  // NEW INTERACTIVE SELECTOR HELPER
   Widget _buildRealDropdownFilter({
     required IconData prefixIcon,
     required String currentValue,
@@ -1133,20 +1229,21 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
     required ValueChanged<String?> onChanged,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade300)),
       child: Row(
         children: [
-          Icon(prefixIcon, color: Colors.grey.shade500),
-          const SizedBox(width: 12),
+          Icon(prefixIcon, color: Colors.grey.shade500, size: 18),
+          const SizedBox(width: 8),
           Expanded(
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: currentValue,
                 isExpanded: true,
-                icon: Icon(Icons.arrow_drop_down, color: Colors.grey.shade500),
+                style: const TextStyle(fontSize: 14, color: Colors.black),
+                icon: Icon(Icons.arrow_drop_down, color: Colors.grey.shade500, size: 20),
                 items: items.map((String value) {
-                  return DropdownMenuItem<String>(value: value, child: Text(value, style: const TextStyle(fontSize: 15)));
+                  return DropdownMenuItem<String>(value: value, child: Text(value, style: const TextStyle(fontSize: 13)));
                 }).toList(),
                 onChanged: onChanged,
               ),
@@ -1169,28 +1266,29 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
     required bool isIncrement,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       child: Row(
         children: [
           Expanded(
             flex: 3,
             child: Row(
               children: [
-                Icon(isIncrement ? Icons.add : Icons.remove, color: isIncrement ? const Color(0xFF2E7D32) : const Color(0xFFC62828), size: 20),
-                const SizedBox(width: 12),
-                Text(name, style: const TextStyle(fontSize: 16, color: Colors.black)),
+                Icon(isIncrement ? Icons.add : Icons.remove, color: isIncrement ? const Color(0xFF2E7D32) : const Color(0xFFC62828), size: 18),
+                const SizedBox(width: 8),
+                Expanded(child: Text(name, style: const TextStyle(fontSize: 14, color: Colors.black), overflow: TextOverflow.ellipsis)),
               ],
             ),
           ),
-          Expanded(flex: 2, child: Text(refNum, style: TextStyle(color: Colors.grey.shade600, fontSize: 15))),
-          Expanded(flex: 2, child: Text(category, style: TextStyle(color: Colors.grey.shade600, fontSize: 15))),
+          Expanded(flex: 2, child: Text(refNum, style: TextStyle(color: Colors.grey.shade600, fontSize: 13), overflow: TextOverflow.ellipsis)),
+          Expanded(flex: 2, child: Text(category, style: TextStyle(color: Colors.grey.shade600, fontSize: 13), overflow: TextOverflow.ellipsis)),
           Expanded(
             flex: 2,
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(qty, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                const SizedBox(width: 8),
-                Text(minLimit, style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+                Text(qty, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                const SizedBox(width: 4),
+                Expanded(child: Text(minLimit, style: TextStyle(color: Colors.grey.shade400, fontSize: 11), overflow: TextOverflow.ellipsis)),
               ],
             ),
           ),
@@ -1199,13 +1297,13 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
             child: UnconstrainedBox(
               alignment: Alignment.centerLeft,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(20)),
-                child: Text(statusText, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13)),
+                child: Text(statusText, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 11)),
               ),
             ),
           ),
-          IconButton(icon: const Icon(Icons.edit_note, color: Color(0xFF0C245E)), onPressed: () {})
+          IconButton(icon: const Icon(Icons.edit_note, color: Color(0xFF0C245E), size: 22), onPressed: () {})
         ],
       ),
     );

@@ -13,7 +13,6 @@ initializeApp({
 const db = getFirestore();
 const COLLECTION_NAME = 'master_list';
 
-// CHANGE THIS to 'master_list.csv' or 'master_list.json' depending on your file!
 const FILE_PATH = './firestore-uploader/master_list.csv';
 
 /**
