@@ -331,6 +331,205 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
     );
   }
 
+  void _showEditItemModal(BuildContext context, String docId, Map<String, dynamic> item) {
+    final nameController = TextEditingController(text: item['name'] ?? '');
+    final refController = TextEditingController(text: item['refNum'] ?? '');
+    final categoryController = TextEditingController(text: item['category'] ?? '');
+    final qtyController = TextEditingController(text: (item['quantity'] ?? 0).toString());
+
+    String rawMin = item['minLimit'] ?? "10";
+    final minLimitController = TextEditingController(text: rawMin.replaceAll(RegExp(r'[^0-9]'), ''));
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Container(
+            width: 550,
+            padding: const EdgeInsets.all(24.0),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Edit Item Quantity",
+                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 24, color: Colors.black87),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Divider(),
+                  const SizedBox(height: 16),
+
+                  // Item Name Field (READ ONLY)
+                  const Text("Item Name", style: TextStyle(fontWeight: FontWeight.w500, color: Colors.grey)),
+                  const SizedBox(height: 6),
+                  TextFormField(
+                    controller: nameController,
+                    readOnly: true, // LOCK THIS FIELD
+                    decoration: InputDecoration(
+                      fillColor: Colors.grey.shade100,
+                      filled: true,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Row 1: Reference Number & Category (BOTH READ ONLY)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text("Reference Number", style: TextStyle(fontWeight: FontWeight.w500, color: Colors.grey)),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: refController,
+                              readOnly: true, // LOCK THIS FIELD
+                              decoration: InputDecoration(
+                                fillColor: Colors.grey.shade100,
+                                filled: true,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text("Category", style: TextStyle(fontWeight: FontWeight.w500, color: Colors.grey)),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: categoryController,
+                              readOnly: true, // LOCK THIS FIELD
+                              decoration: InputDecoration(
+                                fillColor: Colors.grey.shade100,
+                                filled: true,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Row 2: Quantity (EDITABLE) & Min Quantity (READ ONLY)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text("Quantity *", style: TextStyle(fontWeight: FontWeight.w500, color: Colors.black87)),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: qtyController,
+                              keyboardType: TextInputType.number,
+                              autofocus: true, // Automatically highlight this field for editing
+                              decoration: InputDecoration(
+                                hintText: "Enter new stock level",
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text("Min Quantity", style: TextStyle(fontWeight: FontWeight.w500, color: Colors.grey)),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: minLimitController,
+                              readOnly: true, // LOCK THIS FIELD
+                              decoration: InputDecoration(
+                                fillColor: Colors.grey.shade100,
+                                filled: true,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+
+                  // Actions Layout Panel
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          fixedSize: const Size(130, 45),
+                          side: BorderSide(color: Colors.grey.shade300),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text("Cancel", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 16)),
+                      ),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0C245E),
+                          fixedSize: const Size(160, 45),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: () async {
+                          final int parsedQty = int.tryParse(qtyController.text) ?? 0;
+                          final int parsedMin = int.tryParse(minLimitController.text) ?? 10;
+
+                          // Dynamically re-calculate status based on the new custom quantity level
+                          String status = "In stock";
+                          if (parsedQty <= 0) {
+                            status = "Out of Stock";
+                          } else if (parsedQty < parsedMin) {
+                            status = "Low Stock";
+                          }
+
+                          // Update ONLY quantity and status metrics in Firebase
+                          await FirebaseFirestore.instance.collection('master_list').doc(docId).update({
+                            'quantity': parsedQty,
+                            'status': status,
+                          });
+
+                          if (context.mounted) Navigator.pop(context);
+                        },
+                        child: const Text("Update Item", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _showScanConfirmationModal({
     required bool isAdding,
     required String scannedName,
@@ -376,7 +575,7 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
                 const SizedBox(height: 6),
                 Text(
                   "Verify if the scanned product metadata below matches your physical package.",
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade100),
+                  style: TextStyle(fontSize: 13, color: Colors.black),
                 ),
                 const SizedBox(height: 16),
 
@@ -420,7 +619,10 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
                         children: [
                           _buildModalLabel(isAdding ? "Quantity to Add *" : "Quantity to Ship *"),
                           const SizedBox(height: 6),
-                          _buildModalTextField(controller: qtyChangeController, hint: "", isNumeric: true),
+                          SizedBox(
+                            height: 45,
+                            child: _buildModalTextField(controller: qtyChangeController, hint: "", isNumeric: true),
+                          ),
                         ],
                       ),
                     ),
@@ -537,7 +739,7 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
       builder: (context) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 580),
+          constraints: const BoxConstraints(maxWidth: 550),
           child: StreamBuilder<QuerySnapshot>(
             stream: _firestore.collection('master_list').snapshots(),
             builder: (context, snapshot) {
@@ -596,7 +798,7 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
                           alignment: Alignment.topLeft,
                           child: Material(
                             elevation: 4.0,
-                            color: Colors.white, // FIX: Define surface color here so ink layers can render
+                            color: Colors.white,
                             borderRadius: BorderRadius.circular(8),
                             child: Container(
                               width: 320,
@@ -802,7 +1004,16 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
       _isScannerAddingMode = isAdding;
     });
 
-    if (_selectedShortcutIndex == 0) {
+    // CHANGE: Allow scanning if SCAN BARCODE is selected (0) OR if no mode is explicitly chosen yet (-1)
+    if (_selectedShortcutIndex == 0 || _selectedShortcutIndex == -1) {
+
+      setState(() {
+        _selectedShortcutIndex = 0;
+      });
+
+      FocusScope.of(context).unfocus();
+      _globalScannerFocusNode.requestFocus();
+
       ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -821,6 +1032,7 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
         ),
       );
     } else {
+      // This will now ONLY open if the user explicitly clicked the MANUAL INPUT card (index 1)
       _showManualInputModal(isAdding: isAdding);
     }
   }
@@ -843,23 +1055,21 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
     bool isReadOnly = false,
     Widget? suffixIcon,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isReadOnly ? Colors.grey.shade50 : Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-      child: TextField(
-        controller: controller,
-        readOnly: isReadOnly,
-        keyboardType: isNumeric ? TextInputType.number : TextInputType.text,
-        style: TextStyle(color: isReadOnly ? Colors.grey.shade700 : Colors.black, fontSize: 14),
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          hintText: hint,
-          isDense: true,
-          suffixIcon: suffixIcon,
+    return TextFormField(
+      controller: controller,
+      keyboardType: isNumeric ? TextInputType.number : TextInputType.text,
+      readOnly: isReadOnly,
+      // FIX: Add styling properties inside your existing method to align the text perfectly
+      textAlignVertical: TextAlignVertical.center,
+      decoration: InputDecoration(
+        hintText: hint,
+        isDense: true, // FIX: Shrinks default text field height allocations
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12), // MATCHES CONTAINER PADDING
+        filled: isReadOnly,
+        fillColor: isReadOnly ? Colors.grey.shade100 : Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: Colors.grey.shade300),
         ),
       ),
     );
@@ -923,9 +1133,9 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
                     title: "MANUAL INPUT",
                     subtitle: "Encode manually",
                     icon: Icons.edit_note_outlined,
-                    activeBgColor: const Color(0xFFFEF3C7),
-                    activeBorderColor: const Color(0xFFFDE68A),
-                    activeIconColor: const Color(0xFFD97706),
+                    activeBgColor: const Color(0xFFE8F5E9),
+                    activeBorderColor: const Color(0xFFA5D6A7),
+                    activeIconColor: const Color(0xFF2E7D32),
                     onTap: () => _showManualInputModal(isAdding: true),
                   ),
                 ],
@@ -954,48 +1164,49 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
                         icon: Icon(
                           Icons.add,
                           size: 18,
-                          color: (_selectedShortcutIndex == 0 && _isScannerAddingMode) ? Colors.white : const Color(0xFF2E7D32),
+                          color: _isScannerAddingMode ? Colors.white : const Color(0xFF2E7D32),
                         ),
                         label: const Text("Add Item", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: (_selectedShortcutIndex == 0 && _isScannerAddingMode)
+                          backgroundColor: _isScannerAddingMode
                               ? const Color(0xFF2E7D32)
                               : Colors.white,
-                          foregroundColor: (_selectedShortcutIndex == 0 && _isScannerAddingMode)
+                          foregroundColor: _isScannerAddingMode
                               ? Colors.white
                               : const Color(0xFF2E7D32),
                           side: BorderSide(
-                            color: (_selectedShortcutIndex == 0 && _isScannerAddingMode) ? Colors.transparent : const Color(0xFF2E7D32),
+                            color: _isScannerAddingMode ? Colors.transparent : const Color(0xFF2E7D32),
                             width: 1.5,
                           ),
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          elevation: (_selectedShortcutIndex == 0 && _isScannerAddingMode) ? 2 : 0,
+                          elevation: _isScannerAddingMode ? 2 : 0,
                         ),
                       ),
                       const SizedBox(width: 12),
+
                       ElevatedButton.icon(
                         onPressed: () => _handleInventoryActionDispatch(isAdding: false),
                         icon: Icon(
                           Icons.remove,
                           size: 18,
-                          color: (_selectedShortcutIndex == 0 && !_isScannerAddingMode) ? Colors.white : const Color(0xFFEF4444),
+                          color: !_isScannerAddingMode ? Colors.white : const Color(0xFFEF4444),
                         ),
                         label: const Text("Shipped Item", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: (_selectedShortcutIndex == 0 && !_isScannerAddingMode)
+                          backgroundColor: !_isScannerAddingMode
                               ? const Color(0xFFEF4444)
                               : Colors.white,
-                          foregroundColor: (_selectedShortcutIndex == 0 && !_isScannerAddingMode)
+                          foregroundColor: !_isScannerAddingMode
                               ? Colors.white
                               : const Color(0xFFEF4444),
                           side: BorderSide(
-                            color: (_selectedShortcutIndex == 0 && !_isScannerAddingMode) ? Colors.transparent : const Color(0xFFEF4444),
+                            color: !_isScannerAddingMode ? Colors.transparent : const Color(0xFFEF4444),
                             width: 1.5,
                           ),
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          elevation: (_selectedShortcutIndex == 0 && !_isScannerAddingMode) ? 2 : 0,
+                          elevation: !_isScannerAddingMode ? 2 : 0,
                         ),
                       ),
                     ],
@@ -1009,7 +1220,7 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
                   Expanded(
                     flex: 2,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
                       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade300)),
                       child: TextField(
                         controller: _searchController,
@@ -1141,6 +1352,8 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
                                   }
 
                                   return _buildInventoryRow(
+                                    docId: doc.id,
+                                    rawData: data,
                                     name: data['name'] ?? '',
                                     refNum: data['refNum'] ?? '',
                                     category: data['category'] ?? '',
@@ -1255,6 +1468,8 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
   }
 
   Widget _buildInventoryRow({
+    required String docId,
+    required Map<String, dynamic> rawData,
     required String name,
     required String refNum,
     required String category,
@@ -1303,7 +1518,12 @@ class _PrismInventoryPageState extends State<PrismInventoryPage> {
               ),
             ),
           ),
-          IconButton(icon: const Icon(Icons.edit_note, color: Color(0xFF0C245E), size: 22), onPressed: () {})
+          IconButton(
+            icon: const Icon(Icons.edit_note, color: Color(0xFF0C245E), size: 22),
+            onPressed: () {
+              _showEditItemModal(context, docId, rawData);
+            },
+          ),
         ],
       ),
     );

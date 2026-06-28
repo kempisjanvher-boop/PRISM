@@ -292,7 +292,7 @@ class _UsersPageState extends State<UsersPage> {
                           const Text("All Users", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                           Container(
                             decoration: BoxDecoration(
-                              color: const Color(0xFF4ADE80),
+                              color: const Color(0xFF2E7D32),
                               borderRadius: BorderRadius.circular(12),
                               boxShadow: [
                                 BoxShadow(

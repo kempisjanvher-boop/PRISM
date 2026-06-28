@@ -109,7 +109,7 @@ class PrismOnboardingScreen extends StatelessWidget {
                                   context: context,
                                   title: "VIEW",
                                   highlightedWord: "Inventory",
-                                  subtitle: "Track stock or shipped packages",
+                                  subtitle: "Track stock and shipped packages",
                                   imgIcon: Image.asset(
                                     'asset/view.png',
                                     width: 100,
@@ -127,7 +127,7 @@ class PrismOnboardingScreen extends StatelessWidget {
                                   context: context,
                                   title: "EDIT",
                                   highlightedWord: "Inventory",
-                                  subtitle: "Manage stock or shipped packages",
+                                  subtitle: "Manage stock and shipped packages",
                                   imgIcon: Image.asset(
                                     'asset/edit.png',
                                     width: 100,
