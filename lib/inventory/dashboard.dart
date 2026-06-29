@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'inventory.dart';
+import '../idle_detector.dart';
 
 class PrismDashboard extends StatefulWidget {
   final String userCode;
@@ -45,10 +46,12 @@ class _PrismDashboardState extends State<PrismDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF3F4F6),
-      body: Row(
-        children: [
+    return IdleDetector(
+      idleTimeout: const Duration(minutes: 1),
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF3F4F6),
+        body: Row(
+          children: [
           // ==========================================
           // PART A: SIDEBAR PANEL COMPONENT (FIXED / LOCKED)
           // ==========================================
@@ -62,7 +65,7 @@ class _PrismDashboardState extends State<PrismDashboard> {
                   padding: const EdgeInsets.only(top: 36.0, left: 24.0, right: 24.0, bottom: 20.0),
                   child: Row(
                     children: [
-                      Image.asset('asset/MLA.png', height: 44, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Icon(Icons.apps, size: 32, color: navNavy)),
+                      Image.asset('asset/MLA.png', height: 44, fit: BoxFit.contain, errorBuilder: (_, _, _) => const Icon(Icons.apps, size: 32, color: navNavy)),
                       const SizedBox(width: 12),
                       const Expanded(
                         child: Text(
@@ -177,6 +180,7 @@ class _PrismDashboardState extends State<PrismDashboard> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

@@ -5,6 +5,7 @@ import '../inventory/inventory.dart';
 import 'users_page.dart';
 import 'reports_page.dart';
 import 'settings_page.dart';
+import '../idle_detector.dart';
 
 class PrismAdminDashboard extends StatefulWidget {
   final String userCode;
@@ -46,10 +47,12 @@ class _PrismAdminDashboardState extends State<PrismAdminDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF3F4F6),
-      body: Row(
-        children: [
+    return IdleDetector(
+      idleTimeout: const Duration(minutes: 1),
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF3F4F6),
+        body: Row(
+          children: [
           // ==========================================
           // PART A: SIDEBAR PANEL COMPONENT
           // ==========================================
@@ -151,6 +154,7 @@ class _PrismAdminDashboardState extends State<PrismAdminDashboard> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase/firebase_options.dart';
-import 'onboarding.dart';
+import 'welcome_screen.dart';
+import 'idle_detector.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,7 +23,10 @@ class PrismApp extends StatelessWidget {
         primarySwatch: Colors.indigo,
         fontFamily: 'Roboto', // Clean modern font matching the image style
       ),
-      home: PrismOnboardingScreen(),
+      home: IdleDetector(
+        idleTimeout: const Duration(minutes: 1),
+        child: const WelcomeScreen(),
+      ),
       debugShowCheckedModeBanner: false,
     );
   }
